@@ -78,16 +78,93 @@ class PlayerManager {
             p.update(dt);
             
             // Handle shooting
-            if (p.inputs.mouse.buttons && p.inputs.mouse.buttons.left) {
+            if (p.inputs.mouse && p.inputs.mouse.leftDown) {
                 this.gameRoom.weaponSystem.tryFire(p, this.gameRoom.projectileSystem);
+            }
+
+            // Handle Deployables
+            const scores = this.gameRoom.scoreSystem.scores;
+            const playerScore = scores[p.id] || 0;
+
+            if (p.inputs.deploy1 && !p.deploy1Lock) {
+                p.deploy1Lock = true;
+                if (playerScore >= 500) {
+                    this.gameRoom.robotSystem.spawnRobot(p.x, p.y, 'turret', p.team, p.id);
+                    this.gameRoom.scoreSystem.addScore(p.id, -500, null);
+                }
+            }
+            if (!p.inputs.deploy1) p.deploy1Lock = false;
+
+            if (p.inputs.deployTitan && !p.deployTLock) {
+                p.deployTLock = true;
+                if (playerScore >= 2500 && !p.inMech) {
+                    this.gameRoom.mechSystem.spawnMech(p.inputs.mouse.worldX, p.inputs.mouse.worldY, 'titan', p.team);
+                    this.gameRoom.scoreSystem.addScore(p.id, -2500, null);
+                }
+            }
+            if (!p.inputs.deployTitan) p.deployTLock = false;
+
+            // Handle Interact (Enter / Exit Mech)
+            if (p.inputs.interact && !p.interactLock) {
+                p.interactLock = true;
+                
+                if (p.inMech) {
+                    // Exit mech
+                    const mech = this.gameRoom.mechSystem.mechs.find(m => m.id === p.inMech);
+                    if (mech) {
+                        mech.state = 'idle';
+                        mech.owner = null;
+                        mech.health = p.health; // Save health state back to mech
+                    }
+                    
+                    p.inMech = false;
+                    p.health = 100;
+                    p.maxHealth = 100;
+                    p.speed = 200;
+                    p.currentWeapon = 'plasma_rifle';
+                } else {
+                    // Enter mech
+                    this.gameRoom.mechSystem.tryEnterMech(p);
+                }
+            }
+            if (!p.inputs.interact) p.interactLock = false;
+
+            // Sync Mech Position if Piloting
+            if (p.inMech) {
+                const mech = this.gameRoom.mechSystem.mechs.find(m => m.id === p.inMech);
+                if (mech) {
+                    mech.x = p.x;
+                    mech.y = p.y;
+                    mech.rotation = p.rotation;
+                    
+                    // If mech is destroyed while piloting
+                    if (mech.health <= 0) {
+                        p.inMech = false;
+                        p.health = 0; // Player dies too
+                    } else {
+                         // Keep player health synchronized with mech health
+                         mech.health = p.health;
+                    }
+                } else {
+                    p.inMech = false;
+                }
             }
         }
     }
 
     getState() {
         const state = {};
+        const scores = this.gameRoom.scoreSystem ? this.gameRoom.scoreSystem.scores : {};
+        
         for (let [id, p] of this.players) {
-            state[id] = { x: p.x, y: p.y, rotation: p.rotation, team: p.team, health: p.health };
+            state[id] = { 
+                x: p.x, y: p.y, 
+                rotation: p.rotation, 
+                team: p.team, 
+                health: p.health,
+                inMech: !!p.inMech,
+                score: scores[id] || 0
+            };
         }
         return state;
     }

@@ -14,16 +14,22 @@ export class Renderer {
         }
 
         // Find local player to act as camera focal point
-        let cameraX = 0;
-        let cameraY = 0;
+        // Camera state members
+        if (this.cameraX === undefined) this.cameraX = 0;
+        if (this.cameraY === undefined) this.cameraY = 0;
+
         if (localPlayerId && gameState.players && gameState.players[localPlayerId]) {
-            cameraX = gameState.players[localPlayerId].x;
-            cameraY = gameState.players[localPlayerId].y;
+            const targetX = gameState.players[localPlayerId].x;
+            const targetY = gameState.players[localPlayerId].y;
+            
+            // Smooth Camera Lerp (10% per frame)
+            this.cameraX += (targetX - this.cameraX) * 0.1;
+            this.cameraY += (targetY - this.cameraY) * 0.1;
             
             // Background grid drawing relative to camera
             this.ctx.save();
-            const offsetX = (width / 2) - cameraX;
-            const offsetY = (height / 2) - cameraY;
+            const offsetX = (width / 2) - this.cameraX;
+            const offsetY = (height / 2) - this.cameraY;
             
             // Draw a subtle grid
             this.ctx.strokeStyle = '#222';
@@ -47,14 +53,30 @@ export class Renderer {
             this.ctx.restore();
             
             // Apply camera transform to all entities
-            this.ctx.translate((width / 2) - cameraX, (height / 2) - cameraY);
+            this.ctx.translate((width / 2) - this.cameraX, (height / 2) - this.cameraY);
         }
 
         // Draw players
         if (gameState.players) {
             for (let pId in gameState.players) {
                 const player = gameState.players[pId];
-                this.drawPlayer(player, pId === localPlayerId);
+                if (!player.inMech) {
+                    this.drawPlayer(player, pId === localPlayerId);
+                }
+            }
+        }
+
+        // Draw mechs
+        if (gameState.mechs) {
+            for (let mech of gameState.mechs) {
+                this.drawMech(mech, mech.owner === localPlayerId);
+            }
+        }
+
+        // Draw robots (turrets, drones, etc)
+        if (gameState.robots) {
+            for (let robot of gameState.robots) {
+                this.drawRobot(robot);
             }
         }
 
@@ -83,7 +105,7 @@ export class Renderer {
         
         // Draw glow if local player
         if (isLocal) {
-            this.ctx.shadowBlur = 10;
+            this.ctx.shadowBlur = 15;
             this.ctx.shadowColor = '#fff';
         }
         
@@ -94,17 +116,21 @@ export class Renderer {
         const hpPercent = Math.max(0, player.health) / 100;
         this.ctx.fillRect(-20, -30, 40 * hpPercent, 6);
 
-        // Draw team color ring
-        this.ctx.strokeStyle = player.team === 'blue' ? '#4a90e2' : '#e24a4a';
-        this.ctx.lineWidth = 3;
+        // Target angle indicator (Gun barrel)
+        this.ctx.save();
+        this.ctx.rotate(player.rotation);
+        this.ctx.fillStyle = '#888';
+        this.ctx.fillRect(0, -4, 28, 8); // Gun barrel
+        this.ctx.restore();
+
+        // Draw team color body
+        this.ctx.fillStyle = player.team === 'blue' ? '#4a90e2' : '#e24a4a';
+        this.ctx.strokeStyle = '#fff';
+        this.ctx.lineWidth = 2;
         this.ctx.beginPath();
         this.ctx.arc(0, 0, 16, 0, Math.PI * 2);
-        this.ctx.stroke();
-
-        // Target angle indicator
-        this.ctx.rotate(player.rotation);
-        this.ctx.fillStyle = '#666';
-        this.ctx.fillRect(0, -4, 24, 8); // Gun barrel
+        this.ctx.fill();
+        if (isLocal) this.ctx.stroke();
 
         this.ctx.restore();
     }
@@ -127,6 +153,102 @@ export class Renderer {
         } else {
             this.ctx.fillRect(0, -3, 10, 6);
         }
+
+        this.ctx.restore();
+    }
+
+    drawRobot(robot) {
+        this.ctx.save();
+        this.ctx.translate(robot.x, robot.y);
+        
+        // Base
+        this.ctx.fillStyle = '#333';
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, 12, 0, Math.PI * 2);
+        this.ctx.fill();
+        
+        // Team Outline
+        this.ctx.strokeStyle = robot.team === 'blue' ? '#4a90e2' : '#e24a4a';
+        this.ctx.lineWidth = 2;
+        this.ctx.stroke();
+
+        // Health Bar
+        if (robot.health < 150) {
+            this.ctx.fillStyle = '#f00';
+            this.ctx.fillRect(-15, -20, 30, 4);
+            this.ctx.fillStyle = '#0f0';
+            const hpPercent = Math.max(0, robot.health) / 150;
+            this.ctx.fillRect(-15, -20, 30 * hpPercent, 4);
+        }
+
+        // Gun Barrel
+        this.ctx.rotate(robot.rotation);
+        this.ctx.fillStyle = '#777';
+        this.ctx.fillRect(0, -3, 20, 6);
+
+        this.ctx.restore();
+    }
+
+    drawMech(mech, isLocal) {
+        this.ctx.save();
+        this.ctx.translate(mech.x, mech.y);
+        
+        let scale = 1;
+        if (mech.state === 'falling') {
+            // Simulate dropping from sky
+            scale = 1 + mech.fallProgress * 3;
+            this.ctx.globalAlpha = 1 - mech.fallProgress * 0.5;
+        }
+        this.ctx.scale(scale, scale);
+
+        if (isLocal) {
+            this.ctx.shadowBlur = 20;
+            this.ctx.shadowColor = '#fff';
+        }
+
+        const maxHealth = mech.type === 'titan' ? 2000 : 1000;
+        
+        // Draw Health Bar
+        if (mech.state !== 'falling') {
+            this.ctx.fillStyle = '#f00';
+            this.ctx.fillRect(-30, -50, 60, 8);
+            this.ctx.fillStyle = '#0f0';
+            const hpPercent = Math.max(0, mech.health) / maxHealth;
+            this.ctx.fillRect(-30, -50, 60 * hpPercent, 8);
+        }
+
+        // Target angle indicator
+        this.ctx.save();
+        this.ctx.rotate(mech.rotation || 0);
+        this.ctx.fillStyle = '#555';
+        
+        // Heavy weapons depending on state
+        if (mech.type === 'titan') {
+            this.ctx.fillRect(-10, -25, 40, 15); // Left cannon
+            this.ctx.fillRect(-10, 10, 40, 15);  // Right cannon
+        } else {
+            this.ctx.fillRect(0, -8, 35, 16); // Center heavy cannon
+        }
+        this.ctx.restore();
+
+        // Mech Body
+        this.ctx.fillStyle = mech.team === 'blue' ? '#2c3e50' : '#341f1f'; // Darker base
+        this.ctx.strokeStyle = mech.team === 'blue' ? '#4a90e2' : '#e24a4a';
+        this.ctx.lineWidth = 4;
+        
+        this.ctx.beginPath();
+        if (mech.type === 'titan') {
+            // Hexagon for titan
+            for (let i = 0; i < 6; i++) {
+                this.ctx.lineTo(30 * Math.cos(i * Math.PI / 3), 30 * Math.sin(i * Math.PI / 3));
+            }
+        } else {
+            // Square for standard mech
+            this.ctx.rect(-25, -25, 50, 50);
+        }
+        this.ctx.closePath();
+        this.ctx.fill();
+        this.ctx.stroke();
 
         this.ctx.restore();
     }

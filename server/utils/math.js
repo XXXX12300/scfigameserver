@@ -1,10 +1,16 @@
-module.exports = {
+const MathUtils = {
     distance(x1, y1, x2, y2) {
-        return Math.sqrt((x2-x1)**2 + (y2-y1)**2);
+        return Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
     },
-    normalize(vx, vy) {
-        const len = Math.sqrt(vx*vx + vy*vy);
-        if (len === 0) return {x:0, y:0};
-        return {x: vx/len, y: vy/len};
+    angleBetween(x1, y1, x2, y2) {
+        return Math.atan2(y2 - y1, x2 - x1);
+    },
+    clamp(val, min, max) {
+        return Math.min(Math.max(val, min), max);
+    },
+    lerp(a, b, t) {
+        return a + (b - a) * t;
     }
 };
+
+module.exports = MathUtils;

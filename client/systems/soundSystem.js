@@ -1,6 +1,4 @@
 export class SoundSystem {
-    constructor() {
-        this.sounds = {};
-    }
-    play(soundId) {}
+    constructor() {}
+    playSound(namd) {}
 }

@@ -33,7 +33,18 @@ export class Input {
             down: !!this.keys['KeyS'],
             left: !!this.keys['KeyA'],
             right: !!this.keys['KeyD'],
-            mouse: { ...this.mouse }
+            deploy1: !!this.keys['Digit1'], // Turret
+            deploy2: !!this.keys['Digit2'], // Drone
+            deploy3: !!this.keys['Digit3'], // Walker
+            deploy4: !!this.keys['Digit4'], // Suicide
+            deployTitan: !!this.keys['KeyT'], // Titan/Mech
+            interact: !!this.keys['KeyE'], // Enter/Exit Mech
+            mouse: { 
+                x: this.mouse.x,
+                y: this.mouse.y,
+                leftDown: this.mouse.buttons.left,
+                rightDown: this.mouse.buttons.right
+            }
         };
     }
 }

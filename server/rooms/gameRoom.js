@@ -1,87 +1,100 @@
 const PlayerManager = require('../playerManager');
+const ProjectileSystem = require('../projectileSystem');
+const WeaponSystem = require('../weaponSystem');
 const MechSystem = require('../mechSystem');
 const RobotSystem = require('../robotSystem');
-const WeaponSystem = require('../weaponSystem');
-const ProjectileSystem = require('../projectileSystem');
 const ScoreSystem = require('../scoreSystem');
 
 class GameRoom {
     constructor(id) {
         this.id = id;
+        
         this.playerManager = new PlayerManager(this);
-        this.mechSystem = new MechSystem();
-        this.robotSystem = new RobotSystem();
-        this.weaponSystem = new WeaponSystem();
         this.projectileSystem = new ProjectileSystem();
-        this.scoreSystem = new ScoreSystem();
-        this.state = 'waiting'; // waiting, playing, ended
-    }
-
-    initMatch() {
-        this.state = 'playing';
-        console.log(`Room ${this.id} match started`);
-        // Assign teams
-        let i = 0;
-        for (let player of this.playerManager.getPlayers()) {
-            player.team = i % 2 === 0 ? 'blue' : 'red';
-            // Send initial state message
-            player.ws.send(JSON.stringify({
-                type: 'match_start',
-                team: player.team,
-                playerId: player.id
-            }));
-            i++;
-        }
+        this.weaponSystem = new WeaponSystem();
+        this.mechSystem = new MechSystem(this);
+        this.robotSystem = new RobotSystem(this);
+        this.scoreSystem = new ScoreSystem(this);
+        
+        this.teams = { blue: 0, red: 0 };
     }
 
     addPlayer(ws, id) {
+        const team = this.teams.blue <= this.teams.red ? 'blue' : 'red';
+        this.teams[team]++;
+        
         this.playerManager.addPlayer(ws, id);
-        ws.on('message', (msg) => {
-            const data = JSON.parse(msg);
-            if (data.type === 'input') {
-                this.playerManager.handleInput(id, data.input);
+        this.playerManager.players.get(id).team = team;
+
+        ws.on('message', (message) => {
+            try {
+                const data = JSON.parse(message);
+                if (data.type === 'input') {
+                    this.playerManager.handleInput(id, data.input);
+                }
+            } catch (e) {
+                console.error('Invalid message', e);
             }
         });
     }
 
     removePlayer(ws) {
-        this.playerManager.removePlayerByWs(ws);
-        if (this.getPlayersCount() === 0) {
-            this.state = 'ended';
+        for (let [id, p] of this.playerManager.players) {
+            if (p.ws === ws) {
+                this.teams[p.team]--;
+                break;
+            }
         }
+        this.playerManager.removePlayerByWs(ws);
     }
 
     getPlayersCount() {
-        return this.playerManager.getPlayers().length;
+        return this.playerManager.players.size;
+    }
+
+    initMatch() {
+        console.log(`Room ${this.id} match starting!`);
+        for (let [id, p] of this.playerManager.players) {
+            p.ws.send(JSON.stringify({
+                type: 'match_start',
+                roomId: this.id,
+                playerId: id,
+                team: p.team
+            }));
+        }
     }
 
     update(dt) {
-        if (this.state !== 'playing') return;
-
         this.playerManager.update(dt);
-        this.projectileSystem.update(dt, this.playerManager, this.mechSystem, this.robotSystem);
-        this.mechSystem.update(dt);
-        this.robotSystem.update(dt);
+        // Update projectiles
+        this.projectileSystem.update(dt, this.playerManager);
         
-        const stateSync = this.generateState();
-        this.broadcastState(stateSync);
+        this.broadcastState();
     }
 
-    generateState() {
-        return {
+    broadcastState() {
+        const state = {
             type: 'gameState',
             players: this.playerManager.getState(),
             projectiles: this.projectileSystem.getState(),
             mechs: this.mechSystem.getState(),
-            robots: this.robotSystem.getState()
+            robots: this.robotSystem.getState(),
+            score: this.scoreSystem.scores
         };
+        const stateStr = JSON.stringify(state);
+        
+        for (let [id, p] of this.playerManager.players) {
+            if(p.ws.readyState === 1) { // WebSocket.OPEN
+                p.ws.send(stateStr);
+            }
+        }
     }
 
-    broadcastState(stateObj) {
-        const msg = JSON.stringify(stateObj);
-        for (let player of this.playerManager.getPlayers()) {
-            if(player.ws.readyState === 1) { // OPEN
-                player.ws.send(msg);
+    broadcastEvent(type, data) {
+        const eventStr = JSON.stringify({ type, ...data });
+        for (let [id, p] of this.playerManager.players) {
+            if(p.ws.readyState === 1) {
+                p.ws.send(eventStr);
             }
         }
     }

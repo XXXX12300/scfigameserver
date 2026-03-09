@@ -1,4 +1,5 @@
 export class AnimationSystem {
+    constructor(ctx) { this.ctx = ctx; }
     update(dt) {}
-    draw(ctx) {}
+    draw(entity) {}
 }
