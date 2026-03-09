@@ -130,6 +130,12 @@ class PlayerManager {
             }
             if (!p.inputs.deployTitan) p.deployTLock = false;
 
+            if (p.inputs.cheatXP && !p.cheatXPLock) {
+                p.cheatXPLock = true;
+                this.gameRoom.scoreSystem.addScore(p.id, 100, null); // Cheat XP
+            }
+            if (!p.inputs.cheatXP) p.cheatXPLock = false;
+
             // Handle Interact (Enter / Exit Mech)
             if (p.inputs.interact && !p.interactLock) {
                 p.interactLock = true;
@@ -190,6 +196,7 @@ class PlayerManager {
                 team: p.team, 
                 health: p.health,
                 inMech: !!p.inMech,
+                currentWeapon: p.currentWeapon,
                 score: scores[id] || 0
             };
         }

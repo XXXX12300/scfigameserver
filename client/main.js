@@ -65,7 +65,8 @@ class GameClient {
              }
         });
 
-        this.network.on('room_list', (rooms) => {
+        this.network.on('room_list', (data) => {
+            const rooms = data.rooms || [];
             this.statusText.innerText = 'Connected! Select a room.';
             this.roomListDOM.innerHTML = '';
             if (rooms.length === 0) {
@@ -177,8 +178,19 @@ class GameClient {
                 }
                 
                 // Correct drift
-                this.predictedPlayer.x += (p.x - this.predictedPlayer.x) * 0.2;
-                this.predictedPlayer.y += (p.y - this.predictedPlayer.y) * 0.2;
+                const diffX = p.x - this.predictedPlayer.x;
+                const diffY = p.y - this.predictedPlayer.y;
+                const distSq = diffX*diffX + diffY*diffY;
+                
+                if (distSq > 150 * 150) {
+                    // Snap if too far (e.g. teleport, spawn)
+                    this.predictedPlayer.x = p.x;
+                    this.predictedPlayer.y = p.y;
+                } else if (distSq > 10 * 10) {
+                    // Smoothly correct 
+                    this.predictedPlayer.x += diffX * 0.1;
+                    this.predictedPlayer.y += diffY * 0.1;
+                }
 
                 // Predict movement
                 let dx = 0; let dy = 0;

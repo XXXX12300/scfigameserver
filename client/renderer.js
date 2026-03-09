@@ -1,6 +1,14 @@
 export class Renderer {
     constructor(ctx) {
         this.ctx = ctx;
+        
+        // Load sprites
+        this.sprites = {
+            pistol: new Image(),
+            smg: new Image()
+        };
+        this.sprites.pistol.src = '/Sprites/character/character pistol.png';
+        this.sprites.smg.src = '/Sprites/character/character smg.png';
     }
 
     render(gameState, width, height, localPlayerId, mapData) {
@@ -168,21 +176,51 @@ export class Renderer {
         this.ctx.textAlign = 'center';
         this.ctx.fillText(player.name || 'Pilot', 0, -35);
 
-        // Target angle indicator (Gun barrel)
+        // Draw character sprite instead of shapes
         this.ctx.save();
         this.ctx.rotate(player.rotation);
-        this.ctx.fillStyle = '#888';
-        this.ctx.fillRect(0, -4, 28, 8); // Gun barrel
-        this.ctx.restore();
+        
+        // Map weapon type to sprite
+        let sprite = this.sprites.pistol;
+        if (player.currentWeapon && player.currentWeapon === 'smg') {
+            sprite = this.sprites.smg;
+        } else if (player.currentWeapon === 'plasma_rifle') {
+            sprite = this.sprites.smg; // Fallback to SMG for rifle until we have more sprites
+        }
 
-        // Draw team color body
-        this.ctx.fillStyle = player.team === 'blue' ? '#4a90e2' : '#e24a4a';
-        this.ctx.strokeStyle = '#fff';
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-        this.ctx.arc(0, 0, 16, 0, Math.PI * 2);
-        this.ctx.fill();
-        if (isLocal) this.ctx.stroke();
+        // The images look like they have guns pointing to the right (assuming 0 rad rotation)
+        // If the sprite native orientation is different, adjust the rotation here.
+        // Also adjust the dimension and offset based on actual image bounds
+        if (sprite.complete && sprite.naturalWidth > 0) {
+            // Draw image centered. We draw it slightly smaller or scaled as needed
+            // Assume the character needs to fit roughly within 48x48 bounds
+            const drawSize = 48; 
+            // The characters might face "down" or "right" in the image. We assume "right" (0 angle)
+            this.ctx.drawImage(sprite, -drawSize/2, -drawSize/2, drawSize, drawSize);
+            
+            // Optional: Draw a subtle team-colored ring underneath to show the team if the sprite doesn't show it well
+            if (!this.sprites.skipTeamRing) {
+                this.ctx.strokeStyle = player.team === 'blue' ? '#4a90e2' : '#e24a4a';
+                this.ctx.lineWidth = 2;
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, drawSize / 2, 0, Math.PI * 2);
+                this.ctx.stroke();
+            }
+        } else {
+            // Fallback to geometric shapes if image isn't loaded yet
+            this.ctx.fillStyle = '#888';
+            this.ctx.fillRect(0, -4, 28, 8); // Gun barrel
+    
+            this.ctx.fillStyle = player.team === 'blue' ? '#4a90e2' : '#e24a4a';
+            this.ctx.strokeStyle = '#fff';
+            this.ctx.lineWidth = 2;
+            this.ctx.beginPath();
+            this.ctx.arc(0, 0, 16, 0, Math.PI * 2);
+            this.ctx.fill();
+            if (isLocal) this.ctx.stroke();
+        }
+
+        this.ctx.restore();
 
         this.ctx.restore();
     }

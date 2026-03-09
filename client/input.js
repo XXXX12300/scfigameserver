@@ -42,6 +42,7 @@ export class Input {
             deploy4: !!this.keys['Digit4'], // Suicide
             deployTitan: !!this.keys['KeyT'], // Titan/Mech
             interact: !!this.keys['KeyE'], // Enter/Exit Mech
+            cheatXP: !!this.keys['KeyK'], // Developer XP
             tab: !!this.keys['Tab'], // Scoreboard
             mouse: { 
                 x: this.mouse.x,

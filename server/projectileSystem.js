@@ -61,6 +61,19 @@ class ProjectileSystem {
                 }
             }
             
+            // Check collisions with map obstacles (buildings)
+            if (!hit && playerManager.gameRoom && playerManager.gameRoom.mapData && playerManager.gameRoom.mapData.obstacles) {
+                for (let obs of playerManager.gameRoom.mapData.obstacles) {
+                    if (obs.type === 'building' || obs.type === 'wall' || obs.type === 'core' || obs.type === 'ruins') {
+                        // Simple point vs AABB collision
+                        if (p.x >= obs.x && p.x <= obs.x + obs.w && p.y >= obs.y && p.y <= obs.y + obs.h) {
+                            hit = true;
+                            break;
+                        }
+                    }
+                }
+            }
+            
             // Check collisions with mechs
             if (!hit && playerManager.gameRoom && playerManager.gameRoom.mechSystem) {
                 const mechs = playerManager.gameRoom.mechSystem.getState();
