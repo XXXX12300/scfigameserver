@@ -11,13 +11,18 @@ class Matchmaking {
     addPlayer(ws) {
         const playerProfile = { ws, id: this.generateId() };
         this.waitingPlayers.push(playerProfile);
-        this.sendRoomList(ws);
+        
+        // Wait briefly for client to be ready before sending room list
+        setTimeout(() => {
+            this.sendRoomList(ws);
+        }, 100);
     }
 
     removePlayer(ws) {
         this.waitingPlayers = this.waitingPlayers.filter(p => p.ws !== ws);
         // Cleanup empty rooms
         this.rooms = this.rooms.filter(r => r.getPlayersCount() > 0);
+        this.broadcastRoomList();
     }
 
     getRoom(roomId) {
@@ -35,11 +40,9 @@ class Matchmaking {
             
             // Auto join the host
             this.joinRoom(ws, roomId, data.playerName);
-            this.broadcastRoomList();
         }
         else if (data.type === 'join_room') {
             this.joinRoom(ws, data.roomId, data.playerName);
-            this.broadcastRoomList();
         }
     }
 
@@ -53,6 +56,9 @@ class Matchmaking {
         
         ws.roomId = roomId;
         room.addPlayer(ws, player.id, playerName);
+
+        // Tell everyone in lobby the player count changed (or room was created)
+        this.broadcastRoomList();
     }
 
     sendRoomList(ws) {

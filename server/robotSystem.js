@@ -1,10 +1,12 @@
 const TurretAI = require('./ai/turretAI');
+const RobotAI = require('./ai/robotAI');
 
 class RobotSystem {
     constructor(gameRoom) {
         this.gameRoom = gameRoom;
         this.robots = [];
         this.turretAI = new TurretAI();
+        this.robotAI = new RobotAI();
     }
 
     spawnRobot(x, y, type, team, ownerId) {
@@ -31,6 +33,8 @@ class RobotSystem {
 
             if (robot.type === 'turret') {
                 this.turretAI.update(robot, dt, this.gameRoom);
+            } else {
+                this.robotAI.update(robot, dt, this.gameRoom);
             }
         }
     }

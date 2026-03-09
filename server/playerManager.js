@@ -1,10 +1,10 @@
 class Player {
-    constructor(ws, id, name) {
+    constructor(ws, id, name, x = 500, y = 500) {
         this.ws = ws;
         this.id = id;
         this.name = name || 'Pilot';
-        this.x = Math.random() * 800 + 100; // placeholder spawn
-        this.y = Math.random() * 600 + 100;
+        this.x = x;
+        this.y = y;
         this.rotation = 0;
         this.speed = 200; // pixels per second
         this.team = 'none';
@@ -14,7 +14,7 @@ class Player {
         this.lastFireTime = 0;
     }
 
-    update(dt) {
+    update(dt, mapData) {
         const dtSec = dt / 1000;
         let dx = 0; let dy = 0;
         
@@ -29,9 +29,36 @@ class Player {
             dx /= len;
             dy /= len;
         }
+        
+        // Tentative movement
+        const radius = 16;
+        let newX = this.x + dx * this.speed * dtSec;
+        let newY = this.y + dy * this.speed * dtSec;
+        
+        if (mapData) {
+            // Keep inside map bounds
+            newX = Math.max(radius, Math.min(newX, mapData.width - radius));
+            newY = Math.max(radius, Math.min(newY, mapData.height - radius));
+            
+            // Obstacle collision (AABB vs Circle approximation)
+            if (mapData.obstacles) {
+                for (let obs of mapData.obstacles) {
+                    // Check X axis
+                    if (newX + radius > obs.x && newX - radius < obs.x + obs.w &&
+                        this.y + radius > obs.y && this.y - radius < obs.y + obs.h) {
+                        newX = this.x; // Block X movement
+                    }
+                    // Check Y axis
+                    if (this.x + radius > obs.x && this.x - radius < obs.x + obs.w &&
+                        newY + radius > obs.y && newY - radius < obs.y + obs.h) {
+                        newY = this.y; // Block Y movement
+                    }
+                }
+            }
+        }
 
-        this.x += dx * this.speed * dtSec;
-        this.y += dy * this.speed * dtSec;
+        this.x = newX;
+        this.y = newY;
         
         // Calculate rotation based on world-space mouse pos
         const wx = this.inputs.mouse.worldX;
@@ -48,8 +75,8 @@ class PlayerManager {
         this.players = new Map();
     }
 
-    addPlayer(ws, id, name) {
-        this.players.set(id, new Player(ws, id, name));
+    addPlayer(ws, id, name, x, y) {
+        this.players.set(id, new Player(ws, id, name, x, y));
     }
 
     removePlayerByWs(ws) {
@@ -74,7 +101,7 @@ class PlayerManager {
 
     update(dt) {
         for (let p of this.players.values()) {
-            p.update(dt);
+            p.update(dt, this.gameRoom.mapData);
             
             // Handle shooting
             if (p.inputs.mouse && p.inputs.mouse.leftDown) {
@@ -87,18 +114,18 @@ class PlayerManager {
 
             if (p.inputs.deploy1 && !p.deploy1Lock) {
                 p.deploy1Lock = true;
-                if (playerScore >= 500) {
+                if (playerScore >= 100) {
                     this.gameRoom.robotSystem.spawnRobot(p.x, p.y, 'turret', p.team, p.id);
-                    this.gameRoom.scoreSystem.addScore(p.id, -500, null);
+                    this.gameRoom.scoreSystem.addScore(p.id, -100, null);
                 }
             }
             if (!p.inputs.deploy1) p.deploy1Lock = false;
 
             if (p.inputs.deployTitan && !p.deployTLock) {
                 p.deployTLock = true;
-                if (playerScore >= 2500 && !p.inMech) {
+                if (playerScore >= 500 && !p.inMech) {
                     this.gameRoom.mechSystem.spawnMech(p.inputs.mouse.worldX, p.inputs.mouse.worldY, 'titan', p.team);
-                    this.gameRoom.scoreSystem.addScore(p.id, -2500, null);
+                    this.gameRoom.scoreSystem.addScore(p.id, -500, null);
                 }
             }
             if (!p.inputs.deployTitan) p.deployTLock = false;

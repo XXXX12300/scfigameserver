@@ -4,6 +4,7 @@ const WeaponSystem = require('../weaponSystem');
 const MechSystem = require('../mechSystem');
 const RobotSystem = require('../robotSystem');
 const ScoreSystem = require('../scoreSystem');
+const MapSystem = require('../mapSystem');
 
 class GameRoom {
     constructor(id, name, mapId, addBots) {
@@ -13,6 +14,9 @@ class GameRoom {
         this.addBots = addBots || false;
         this.maxPlayers = 16;
         
+        this.mapSystem = new MapSystem();
+        this.mapData = this.mapSystem.getMap(this.mapId);
+
         this.playerManager = new PlayerManager(this);
         this.projectileSystem = new ProjectileSystem();
         this.weaponSystem = new WeaponSystem();
@@ -24,8 +28,10 @@ class GameRoom {
         
         // Add bots if requested
         if (this.addBots) {
-            for(let i=0; i<4; i++) {
-                this.robotSystem.spawnRobot(Math.random()*800, Math.random()*600, 'turret', i%2===0?'blue':'red', 'bot');
+            for(let i=0; i<8; i++) {
+                const team = i % 2 === 0 ? 'blue' : 'red';
+                const spawn = this.mapSystem.getRandomSpawn(this.mapId, team);
+                this.robotSystem.spawnRobot(spawn.x, spawn.y, 'drone', team, 'bot');
             }
         }
     }
@@ -34,7 +40,9 @@ class GameRoom {
         const team = this.teams.blue <= this.teams.red ? 'blue' : 'red';
         this.teams[team]++;
         
-        this.playerManager.addPlayer(ws, id, playerName);
+        // Assign Custom Spawn
+        const spawn = this.mapSystem.getRandomSpawn(this.mapId, team);
+        this.playerManager.addPlayer(ws, id, playerName, spawn.x, spawn.y);
         this.playerManager.players.get(id).team = team;
 
         // Immediately start match for this player
@@ -42,7 +50,8 @@ class GameRoom {
             type: 'match_start',
             roomId: this.id,
             playerId: id,
-            team: team
+            team: team,
+            mapData: this.mapData
         }));
     }
 
@@ -88,6 +97,9 @@ class GameRoom {
         this.playerManager.update(dt);
         // Update projectiles
         this.projectileSystem.update(dt, this.playerManager);
+        // Update Mechs and Robots
+        this.mechSystem.update(dt);
+        this.robotSystem.update(dt);
         
         this.broadcastState();
     }

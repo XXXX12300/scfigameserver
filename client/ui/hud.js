@@ -37,8 +37,8 @@ export class HUD {
         const score = player.score || 0;
         let nextStreak = 0;
         let nextName = '';
-        if (score < 500) { nextStreak = 500; nextName = 'Turret (Press 1)'; }
-        else if (score < 2500) { nextStreak = 2500; nextName = 'Titan (Press T)'; }
+        if (score < 100) { nextStreak = 100; nextName = 'Turret (Press 1)'; }
+        else if (score < 500) { nextStreak = 500; nextName = 'Titan (Press T)'; }
         else { nextStreak = score; nextName = 'Max'; }
 
         if (nextStreak > 0 && nextName !== 'Max') {

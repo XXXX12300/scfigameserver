@@ -107,6 +107,7 @@ class GameClient {
             this.state = 'PLAYING';
             this.mainMenu.style.display = 'none';
             this.localPlayerId = data.playerId;
+            this.mapData = data.mapData;
             console.log(`Match started! I am player ${this.localPlayerId} on team ${data.team}`);
             this.addKillfeedMessage('SYSTEM', `Match Started! You are on team ${data.team.toUpperCase()}`, data.team);
         });
@@ -130,7 +131,7 @@ class GameClient {
         this.lastTime = timestamp;
 
         this.update(dt);
-        this.renderer.render(this.gameState, this.canvas.width, this.canvas.height, this.localPlayerId);
+        this.renderer.render(this.gameState, this.canvas.width, this.canvas.height, this.localPlayerId, this.mapData);
         
         if (this.gameState && this.localPlayerId && this.gameState.players && this.gameState.players[this.localPlayerId]) {
             this.hud.update(this.gameState.players[this.localPlayerId]);
@@ -163,16 +164,87 @@ class GameClient {
             this.gameState = state0;
         }
 
-        // Override local player to use the absolute latest server state (remove 100ms lag)
-        if (this.gameState && this.localPlayerId && this.stateBuffer.length > 0) {
-            const latestState = this.stateBuffer[this.stateBuffer.length - 1];
-            if (latestState.players[this.localPlayerId]) {
-                this.gameState.players[this.localPlayerId] = { ...latestState.players[this.localPlayerId] };
-            }
-        }
-
         // Prepare local inputs
         const currentInput = this.input.getInputs();
+
+        // Client-Side Prediction for Local Player to eliminate lag and jitter
+        if (this.gameState && this.localPlayerId && this.stateBuffer.length > 0) {
+            const latestState = this.stateBuffer[this.stateBuffer.length - 1];
+            const p = latestState.players[this.localPlayerId];
+            if (p) {
+                if (!this.predictedPlayer) {
+                    this.predictedPlayer = { x: p.x, y: p.y };
+                }
+                
+                // Correct drift
+                this.predictedPlayer.x += (p.x - this.predictedPlayer.x) * 0.2;
+                this.predictedPlayer.y += (p.y - this.predictedPlayer.y) * 0.2;
+
+                // Predict movement
+                let dx = 0; let dy = 0;
+                if (currentInput.up) dy -= 1;
+                if (currentInput.down) dy += 1;
+                if (currentInput.left) dx -= 1;
+                if (currentInput.right) dx += 1;
+                
+                if (dx !== 0 && dy !== 0) {
+                    const len = Math.sqrt(dx*dx + dy*dy);
+                    dx /= len; dy /= len;
+                }
+                
+                const speed = p.inMech ? 100 : 200; // Match server speeds
+                const dtSec = dt / 1000;
+                
+                let newX = this.predictedPlayer.x + dx * speed * dtSec;
+                let newY = this.predictedPlayer.y + dy * speed * dtSec;
+                
+                // Client-side AABB Collision prediction
+                if (this.mapData) {
+                    const radius = 16;
+                    newX = Math.max(radius, Math.min(newX, this.mapData.width - radius));
+                    newY = Math.max(radius, Math.min(newY, this.mapData.height - radius));
+                    
+                    if (this.mapData.obstacles) {
+                        for (let obs of this.mapData.obstacles) {
+                            if (newX + radius > obs.x && newX - radius < obs.x + obs.w &&
+                                this.predictedPlayer.y + radius > obs.y && this.predictedPlayer.y - radius < obs.y + obs.h) {
+                                newX = this.predictedPlayer.x;
+                            }
+                            if (this.predictedPlayer.x + radius > obs.x && this.predictedPlayer.x - radius < obs.x + obs.w &&
+                                newY + radius > obs.y && newY - radius < obs.y + obs.h) {
+                                newY = this.predictedPlayer.y;
+                            }
+                        }
+                    }
+                }
+                
+                this.predictedPlayer.x = newX;
+                this.predictedPlayer.y = newY;
+                
+                // Compute local precise rotation based on mouse
+                const offsetX = (this.canvas.width / 2) - this.renderer.cameraX;
+                const offsetY = (this.canvas.height / 2) - this.renderer.cameraY;
+                const wx = currentInput.mouse.x - offsetX;
+                const wy = currentInput.mouse.y - offsetY;
+                const computedRot = Math.atan2(wy - this.predictedPlayer.y, wx - this.predictedPlayer.x);
+                
+                this.gameState.players[this.localPlayerId] = {
+                    ...p,
+                    ...this.predictedPlayer,
+                    rotation: computedRot
+                };
+
+                // Apply prediction to the mech if piloted
+                if (p.inMech && this.gameState.mechs) {
+                    const myMech = this.gameState.mechs.find(m => m.owner === this.localPlayerId);
+                    if (myMech) {
+                        myMech.x = this.predictedPlayer.x;
+                        myMech.y = this.predictedPlayer.y;
+                        myMech.rotation = computedRot;
+                    }
+                }
+            }
+        }
         
         // Update Scoreboard UI
         this.updateScoreboard(currentInput.tab);

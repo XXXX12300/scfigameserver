@@ -3,7 +3,7 @@ export class Renderer {
         this.ctx = ctx;
     }
 
-    render(gameState, width, height, localPlayerId) {
+    render(gameState, width, height, localPlayerId, mapData) {
         if (!gameState) {
             this.ctx.fillStyle = '#111';
             this.ctx.fillRect(0, 0, width, height);
@@ -71,6 +71,35 @@ export class Renderer {
             
             // Apply camera transform to all entities
             this.ctx.translate((width / 2) - this.cameraX, (height / 2) - this.cameraY);
+
+            // Draw Map Boundaries and Obstacles
+            if (mapData) {
+                // Map Bounds (Outer walls)
+                this.ctx.strokeStyle = mapId === 'neon_grid' ? '#0ff' : (mapId === 'cyber_facility' ? '#f90' : '#854');
+                this.ctx.lineWidth = 4;
+                this.ctx.strokeRect(0, 0, mapData.width, mapData.height);
+                
+                // Obstacles
+                if (mapData.obstacles) {
+                    for (let obs of mapData.obstacles) {
+                        if (obs.type === 'building' || obs.type === 'wall' || obs.type === 'core') {
+                            this.ctx.fillStyle = mapId === 'neon_grid' ? '#1a1a2e' : (mapId === 'cyber_facility' ? '#2d3436' : '#2d3436');
+                            this.ctx.strokeStyle = mapId === 'neon_grid' ? '#00f3ff' : (mapId === 'cyber_facility' ? '#ff6b00' : '#d63031');
+                        } else if (obs.type === 'ruins') {
+                            this.ctx.fillStyle = '#3a2a20';
+                            this.ctx.strokeStyle = '#634b35';
+                        }
+                        
+                        this.ctx.lineWidth = 2;
+                        this.ctx.fillRect(obs.x, obs.y, obs.w, obs.h);
+                        this.ctx.strokeRect(obs.x, obs.y, obs.w, obs.h);
+                        
+                        // Add some inner detail to make it look like a structure
+                        this.ctx.strokeStyle = 'rgba(255,255,255,0.1)';
+                        this.ctx.strokeRect(obs.x + 10, obs.y + 10, obs.w - 20, obs.h - 20);
+                    }
+                }
+            }
         }
 
         // Draw players
