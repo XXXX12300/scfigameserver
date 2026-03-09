@@ -1,0 +1,17 @@
+{
+  "name": "tds",
+  "version": "1.0.0",
+  "description": "Multiplayer top-down sci-fi shooter game with mech warfare",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.2",
+    "ws": "^8.16.0"
+  }
+}
