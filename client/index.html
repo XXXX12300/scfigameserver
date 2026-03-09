@@ -101,6 +101,49 @@
             80% { opacity: 1; }
             100% { opacity: 0; }
         }
+
+        /* --- Scoreboard UI --- */
+        #scoreboard {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 600px;
+            background: rgba(10, 20, 40, 0.85);
+            border: 2px solid #0ff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
+            display: none; /* hidden by default */
+            flex-direction: column;
+            padding: 20px;
+            z-index: 50;
+        }
+        #scoreboard h2 {
+            text-align: center;
+            color: #0ff;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-top: 0;
+            border-bottom: 1px solid rgba(0, 255, 255, 0.3);
+            padding-bottom: 10px;
+        }
+        .scoreboard-teams {
+            display: flex;
+            gap: 20px;
+        }
+        .team-col {
+            flex: 1;
+        }
+        .team-title-blue { color: #4a90e2; border-bottom: 2px solid #4a90e2; padding-bottom: 5px;}
+        .team-title-red { color: #e24a4a; border-bottom: 2px solid #e24a4a; padding-bottom: 5px;}
+        .player-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 5px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            font-family: monospace;
+            font-size: 16px;
+        }
+        .player-row:nth-child(even) { background: rgba(255,255,255,0.02); }
     </style>
 </head>
 <body>
@@ -113,6 +156,20 @@
     <canvas id="gameCanvas"></canvas>
     <div id="uiLayer">
         <div id="killfeed"></div>
+        
+        <div id="scoreboard">
+            <h2>Combat Record</h2>
+            <div class="scoreboard-teams">
+                <div class="team-col" id="sb-blue">
+                    <h3 class="team-title-blue">Blue Team</h3>
+                    <!-- players injected here -->
+                </div>
+                <div class="team-col" id="sb-red">
+                    <h3 class="team-title-red">Red Team</h3>
+                    <!-- players injected here -->
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module" src="main.js"></script>

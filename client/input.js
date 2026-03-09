@@ -4,7 +4,10 @@ export class Input {
         this.keys = {};
         this.mouse = { x: 0, y: 0, buttons: { left: false, right: false } };
 
-        window.addEventListener('keydown', (e) => this.keys[e.code] = true);
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Tab') e.preventDefault();
+            this.keys[e.code] = true;
+        });
         window.addEventListener('keyup', (e) => this.keys[e.code] = false);
 
         canvas.addEventListener('mousemove', (e) => {
@@ -39,6 +42,7 @@ export class Input {
             deploy4: !!this.keys['Digit4'], // Suicide
             deployTitan: !!this.keys['KeyT'], // Titan/Mech
             interact: !!this.keys['KeyE'], // Enter/Exit Mech
+            tab: !!this.keys['Tab'], // Scoreboard
             mouse: { 
                 x: this.mouse.x,
                 y: this.mouse.y,

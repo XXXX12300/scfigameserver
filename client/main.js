@@ -25,6 +25,9 @@ class GameClient {
         this.playButton = document.getElementById('playButton');
         this.statusText = document.getElementById('statusText');
         this.killfeed = document.getElementById('killfeed');
+        this.scoreboard = document.getElementById('scoreboard');
+        this.sbBlue = document.getElementById('sb-blue');
+        this.sbRed = document.getElementById('sb-red');
         
         this.playButton.addEventListener('click', () => {
             this.playButton.style.display = 'none';
@@ -37,8 +40,16 @@ class GameClient {
             this.statusText.innerText = `Waiting for players... ${data.playersJoined}/${data.playersNeeded}`;
         });
 
+        this.stateBuffer = [];
+
         this.network.on('gameState', (state) => {
-            this.gameState = state;
+            state.timestamp = Date.now();
+            this.stateBuffer.push(state);
+            
+            // Keep buffer small
+            if (this.stateBuffer.length > 5) {
+                this.stateBuffer.shift();
+            }
         });
         this.network.on('match_start', (data) => {
             this.state = 'PLAYING';
@@ -78,9 +89,34 @@ class GameClient {
     }
 
     update(dt) {
+        // Interpolate Game State
+        const now = Date.now();
+        const renderTime = now - 100; // 100ms interpolation delay
+
+        // Find the two states to interpolate between
+        let state0 = null;
+        let state1 = null;
+
+        for (let i = 0; i < this.stateBuffer.length; i++) {
+            if (this.stateBuffer[i].timestamp <= renderTime) {
+                state0 = this.stateBuffer[i];
+                state1 = this.stateBuffer[i + 1]; // Might be undefined
+            }
+        }
+
+        if (state0 && state1) {
+            const t = (renderTime - state0.timestamp) / (state1.timestamp - state0.timestamp);
+            this.gameState = this.interpolateState(state0, state1, t);
+        } else if (state0) {
+            this.gameState = state0;
+        }
+
         // Prepare local inputs
         const currentInput = this.input.getInputs();
         
+        // Update Scoreboard UI
+        this.updateScoreboard(currentInput.tab);
+
         // Compute World Mouse Coordinates
         if (this.localPlayerId && this.gameState && this.gameState.players && this.gameState.players[this.localPlayerId]) {
             const offsetX = (this.canvas.width / 2) - this.renderer.cameraX;
@@ -93,6 +129,87 @@ class GameClient {
         if (this.network.isConnected) {
             this.network.sendInput(currentInput);
         }
+    }
+
+    updateScoreboard(show) {
+        if (!show || !this.gameState) {
+            this.scoreboard.style.display = 'none';
+            return;
+        }
+
+        this.scoreboard.style.display = 'flex';
+        
+        let bluePlayers = [];
+        let redPlayers = [];
+
+        // Distribute to teams
+        for (let id in this.gameState.players) {
+            const p = this.gameState.players[id];
+            p._id = id; // attach id temporarily for render
+            if (p.team === 'blue') bluePlayers.push(p);
+            if (p.team === 'red') redPlayers.push(p);
+        }
+
+        // Sort by score
+        bluePlayers.sort((a, b) => b.score - a.score);
+        redPlayers.sort((a, b) => b.score - a.score);
+
+        // Render Blue
+        this.sbBlue.innerHTML = '<h3 class="team-title-blue">Blue Team</h3>';
+        bluePlayers.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            const name = p._id === this.localPlayerId ? 'You' : `Player ${p._id.substr(0,4)}`;
+            row.innerHTML = `<span>${name}</span> <span>${p.score}</span>`;
+            this.sbBlue.appendChild(row);
+        });
+
+        // Render Red
+        this.sbRed.innerHTML = '<h3 class="team-title-red">Red Team</h3>';
+        redPlayers.forEach(p => {
+            const row = document.createElement('div');
+            row.className = 'player-row';
+            const name = p._id === this.localPlayerId ? 'You' : `Player ${p._id.substr(0,4)}`;
+            row.innerHTML = `<span>${name}</span> <span>${p.score}</span>`;
+            this.sbRed.appendChild(row);
+        });
+    }
+
+    interpolateState(s0, s1, t) {
+        const interpolated = {
+            players: {},
+            projectiles: s1.projectiles, // Don't snap projectiles, let them snap or extrapolate
+            mechs: s1.mechs,
+            robots: s1.robots,
+            score: s1.score
+        };
+
+        // Interpolate players
+        for (let id in s1.players) {
+            const p1 = s1.players[id];
+            const p0 = s0.players[id];
+            
+            if (p0) {
+                interpolated.players[id] = {
+                    ...p1,
+                    x: p0.x + (p1.x - p0.x) * t,
+                    y: p0.y + (p1.y - p0.y) * t,
+                    // Rotation interpolation (shortest path)
+                    rotation: this.lerpAngle(p0.rotation, p1.rotation, t)
+                };
+            } else {
+                interpolated.players[id] = p1;
+            }
+        }
+        
+        // Interpolate Mechs and Robots similarly if needed, but keeping it simple for now
+        return interpolated;
+    }
+
+    lerpAngle(a, b, t) {
+        const CS = (1 - t) * Math.cos(a) + t * Math.cos(b);
+        const SN = (1 - t) * Math.sin(a) + t * Math.sin(b);
+        return Math.atan2(SN, CS);
     }
 
     addKillfeedMessage(killer, text, teamClass) {
