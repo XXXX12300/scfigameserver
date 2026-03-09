@@ -8,7 +8,7 @@ const ScoreSystem = require('../scoreSystem');
 class GameRoom {
     constructor(id) {
         this.id = id;
-        this.playerManager = new PlayerManager();
+        this.playerManager = new PlayerManager(this);
         this.mechSystem = new MechSystem();
         this.robotSystem = new RobotSystem();
         this.weaponSystem = new WeaponSystem();
@@ -59,7 +59,7 @@ class GameRoom {
         if (this.state !== 'playing') return;
 
         this.playerManager.update(dt);
-        this.projectileSystem.update(dt);
+        this.projectileSystem.update(dt, this.playerManager, this.mechSystem, this.robotSystem);
         this.mechSystem.update(dt);
         this.robotSystem.update(dt);
         

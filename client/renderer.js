@@ -55,6 +55,12 @@ export class Renderer {
             for (let pId in gameState.players) {
                 const player = gameState.players[pId];
                 this.drawPlayer(player, pId === localPlayerId);
+        }
+
+        // Draw projectiles
+        if (gameState.projectiles) {
+            for (let p of gameState.projectiles) {
+                this.drawProjectile(p);
             }
         }
         
@@ -80,6 +86,13 @@ export class Renderer {
             this.ctx.shadowColor = '#fff';
         }
         
+        // Health Bar
+        this.ctx.fillStyle = '#f00';
+        this.ctx.fillRect(-20, -30, 40, 6);
+        this.ctx.fillStyle = '#0f0';
+        const hpPercent = Math.max(0, player.health) / 100;
+        this.ctx.fillRect(-20, -30, 40 * hpPercent, 6);
+
         // Draw team color ring
         this.ctx.strokeStyle = player.team === 'blue' ? '#4a90e2' : '#e24a4a';
         this.ctx.lineWidth = 3;
@@ -91,6 +104,28 @@ export class Renderer {
         this.ctx.rotate(player.rotation);
         this.ctx.fillStyle = '#666';
         this.ctx.fillRect(0, -4, 24, 8); // Gun barrel
+
+        this.ctx.restore();
+    }
+
+    drawProjectile(p) {
+        this.ctx.save();
+        this.ctx.translate(p.x, p.y);
+        
+        // Draw based on weapon type/team
+        this.ctx.fillStyle = p.team === 'blue' ? '#74b9ff' : '#ff7675';
+        this.ctx.shadowBlur = 15;
+        this.ctx.shadowColor = this.ctx.fillStyle;
+
+        this.ctx.rotate(Math.atan2(p.vy, p.vx));
+        
+        if (p.weaponType === 'laser_sniper' || p.weaponType === 'railgun') {
+            this.ctx.fillRect(0, -2, 30, 4);
+        } else if (p.weaponType === 'plasma_rifle') {
+            this.ctx.fillRect(0, -4, 16, 8);
+        } else {
+            this.ctx.fillRect(0, -3, 10, 6);
+        }
 
         this.ctx.restore();
     }

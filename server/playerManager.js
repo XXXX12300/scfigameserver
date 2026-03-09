@@ -8,7 +8,11 @@ class Player {
         this.speed = 200; // pixels per second
         this.team = 'none';
         this.health = 100;
-        this.inputs = { up: false, down: false, left: false, right: false, mouse: {x: 0, y: 0} };
+        this.team = 'none';
+        this.health = 100;
+        this.inputs = { up: false, down: false, left: false, right: false, mouse: {x: 0, y: 0, buttons: {left: false}} };
+        this.currentWeapon = 'plasma_rifle';
+        this.lastFireTime = 0;
     }
 
     update(dt) {
@@ -40,7 +44,8 @@ class Player {
 }
 
 class PlayerManager {
-    constructor() {
+    constructor(gameRoom) {
+        this.gameRoom = gameRoom;
         this.players = new Map();
     }
 
@@ -71,6 +76,11 @@ class PlayerManager {
     update(dt) {
         for (let p of this.players.values()) {
             p.update(dt);
+            
+            // Handle shooting
+            if (p.inputs.mouse.buttons && p.inputs.mouse.buttons.left) {
+                this.gameRoom.weaponSystem.tryFire(p, this.gameRoom.projectileSystem);
+            }
         }
     }
 
