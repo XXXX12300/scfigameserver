@@ -55,6 +55,7 @@ export class Renderer {
             for (let pId in gameState.players) {
                 const player = gameState.players[pId];
                 this.drawPlayer(player, pId === localPlayerId);
+            }
         }
 
         // Draw projectiles
