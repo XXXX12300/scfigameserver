@@ -12,6 +12,9 @@ export class Network {
         this.ws.onopen = () => {
             console.log('Connected to server');
             this.isConnected = true;
+            if (this.handlers['connect_success']) {
+                this.handlers['connect_success']();
+            }
         };
 
         this.ws.onmessage = (event) => {

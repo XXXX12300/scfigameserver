@@ -25,51 +25,113 @@
             pointer-events: none;
         }
 
-        /* --- Main Menu UI --- */
+        /* --- Cyberpunk Lobby UI --- */
         #mainMenu {
             position: absolute;
             top: 0;
             left: 0;
             width: 100%;
             height: 100%;
-            background: radial-gradient(circle at center, rgba(10,20,40,0.9) 0%, rgba(5,5,10,1) 100%);
+            background: linear-gradient(135deg, rgba(5,5,10,0.95) 0%, rgba(20,10,30,0.95) 100%);
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-start;
             align-items: center;
             z-index: 100;
             pointer-events: auto;
+            padding-top: 50px;
         }
         #mainMenu h1 {
-            font-size: 4rem;
+            font-size: 3rem;
             color: #0ff;
-            text-shadow: 0 0 20px #0ff;
+            text-shadow: 0 0 15px #0ff;
             margin-bottom: 2rem;
             text-transform: uppercase;
             letter-spacing: 5px;
         }
-        #playButton {
-            padding: 15px 40px;
-            font-size: 1.5rem;
-            background: transparent;
+        .lobby-container {
+            display: flex;
+            width: 80%;
+            max-width: 1000px;
+            gap: 20px;
+        }
+        .lobby-panel {
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid #0ff;
+            box-shadow: 0 0 10px rgba(0, 255, 255, 0.1);
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .lobby-panel h2 {
+            border-bottom: 1px solid #0ff;
+            padding-bottom: 10px;
+            margin-top: 0;
+            color: #fff;
+        }
+        
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #aaa; }
+        .form-group input[type="text"], .form-group select {
+            width: 100%;
+            padding: 10px;
+            background: #111;
+            border: 1px solid #555;
+            color: #fff;
+            box-sizing: border-box;
+            font-size: 16px;
+        }
+        .form-group input[type="text"]:focus, .form-group select:focus {
+            border-color: #0ff;
+            outline: none;
+        }
+        
+        button.cyber-btn {
+            padding: 12px 20px;
+            font-size: 1.1rem;
+            background: #111;
             color: #0ff;
-            border: 2px solid #0ff;
+            border: 1px solid #0ff;
             cursor: pointer;
             transition: all 0.2s;
             text-transform: uppercase;
             font-weight: bold;
-            box-shadow: 0 0 10px rgba(0, 255, 255, 0.2), inset 0 0 10px rgba(0, 255, 255, 0.2);
+            width: 100%;
+            margin-top: 10px;
         }
-        #playButton:hover {
+        button.cyber-btn:hover {
             background: #0ff;
             color: #000;
-            box-shadow: 0 0 30px #0ff;
+            box-shadow: 0 0 15px #0ff;
         }
-        #statusText {
-            margin-top: 20px;
-            color: #aaa;
-            font-size: 1.2rem;
+        
+        /* Room List */
+        #roomList {
+            flex-grow: 1;
+            overflow-y: auto;
+            border: 1px solid #333;
+            background: rgba(0,0,0,0.5);
+            margin-bottom: 15px;
+            padding: 10px;
         }
+        .room-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 1px solid #333;
+            background: rgba(255,255,255,0.02);
+            margin-bottom: 5px;
+        }
+        .room-item:hover { background: rgba(0, 255, 255, 0.1); }
+        .room-info strong { color: #0ff; display: block; font-size: 18px; }
+        .room-info span { color: #888; font-size: 12px; }
+        .join-btn {
+            background: #4a90e2; border: none; padding: 8px 15px; color: white; cursor: pointer;
+            text-transform: uppercase; font-weight: bold;
+        }
+        .join-btn:hover { background: #357abd; }
 
         /* --- Killfeed UI --- */
         #killfeed {
@@ -149,8 +211,45 @@
 <body>
     <div id="mainMenu">
         <h1>TITANFALL 2D</h1>
-        <button id="playButton">DEPLOY</button>
-        <div id="statusText">Disconnected</div>
+        
+        <div class="lobby-container">
+            <!-- Left Panel: Create Room & Settings -->
+            <div class="lobby-panel" id="settingsPanel">
+                <h2>Pilot Settings</h2>
+                <div class="form-group">
+                    <label>Pilot Name:</label>
+                    <input type="text" id="playerNameInput" placeholder="Enter your name..." value="Pilot" maxlength="15">
+                </div>
+                
+                <h2 style="margin-top:20px;">Create Room</h2>
+                <div class="form-group">
+                    <label>Room Name:</label>
+                    <input type="text" id="roomNameInput" placeholder="Server Name" value="My Server">
+                </div>
+                <div class="form-group">
+                    <label>Select Map:</label>
+                    <select id="mapSelect">
+                        <option value="neon_grid">Neon Grid</option>
+                        <option value="cyber_facility">Cyber Facility</option>
+                        <option value="wasteland">Wasteland</option>
+                    </select>
+                </div>
+                <div class="form-group" style="display:flex; align-items:center;">
+                    <input type="checkbox" id="addBotsInput" style="margin-right:10px;">
+                    <label for="addBotsInput" style="margin:0; cursor:pointer;">Populate with AI Bots</label>
+                </div>
+                <button class="cyber-btn" id="createRoomBtn">Host Game</button>
+            </div>
+            
+            <!-- Right Panel: Room List -->
+            <div class="lobby-panel" id="browserPanel">
+                <h2>Server Browser <button id="refreshRoomsBtn" style="float:right; background:transparent; border:none; color:#0ff; cursor:pointer;">Refresh</button></h2>
+                <div id="roomList">
+                    <div style="text-align:center; color:#aaa; margin-top:50px;">Waiting for connection...</div>
+                </div>
+                <div id="statusText" style="text-align:center; color:#0ff; font-weight:bold; margin-top:10px;">Connecting...</div>
+            </div>
+        </div>
     </div>
 
     <canvas id="gameCanvas"></canvas>

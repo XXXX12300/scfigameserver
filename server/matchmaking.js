@@ -9,38 +9,66 @@ class Matchmaking {
     }
 
     addPlayer(ws) {
-        // Create an initial player profile
         const playerProfile = { ws, id: this.generateId() };
         this.waitingPlayers.push(playerProfile);
-        
-        // Notify player they are in lobby
-        ws.send(JSON.stringify({ type: 'lobby', status: 'waiting', playersJoined: this.waitingPlayers.length, playersNeeded: this.playersPerRoom }));
-
-        this.tryCreateRoom();
+        this.sendRoomList(ws);
     }
 
     removePlayer(ws) {
         this.waitingPlayers = this.waitingPlayers.filter(p => p.ws !== ws);
-        // Also remove from rooms if needed
-        for (let room of this.rooms) {
-            room.removePlayer(ws);
-        }
         // Cleanup empty rooms
         this.rooms = this.rooms.filter(r => r.getPlayersCount() > 0);
     }
 
-    tryCreateRoom() {
-        // For testing, even 1 player creates a room. In prod: >= this.playersPerRoom
-        if (this.waitingPlayers.length >= 1) { 
-            const playersForRoom = this.waitingPlayers.splice(0, this.playersPerRoom);
-            const room = new GameRoom(`room_${this.roomIdCounter++}`);
-            
-            for (let p of playersForRoom) {
-                room.addPlayer(p.ws, p.id);
-            }
+    getRoom(roomId) {
+        return this.rooms.find(r => r.id === roomId);
+    }
 
-            room.initMatch();
+    handleMessage(ws, data) {
+        if (data.type === 'get_rooms') {
+            this.sendRoomList(ws);
+        }
+        else if (data.type === 'create_room') {
+            const roomId = `room_${this.roomIdCounter++}`;
+            const room = new GameRoom(roomId, data.roomName, data.mapId, data.addBots);
             this.rooms.push(room);
+            
+            // Auto join the host
+            this.joinRoom(ws, roomId, data.playerName);
+            this.broadcastRoomList();
+        }
+        else if (data.type === 'join_room') {
+            this.joinRoom(ws, data.roomId, data.playerName);
+            this.broadcastRoomList();
+        }
+    }
+
+    joinRoom(ws, roomId, playerName) {
+        const room = this.getRoom(roomId);
+        if (!room) return;
+        
+        // Remove from waiting
+        const player = this.waitingPlayers.find(p => p.ws === ws) || { id: this.generateId() };
+        this.waitingPlayers = this.waitingPlayers.filter(p => p.ws !== ws);
+        
+        ws.roomId = roomId;
+        room.addPlayer(ws, player.id, playerName);
+    }
+
+    sendRoomList(ws) {
+        const list = this.rooms.map(r => ({
+            id: r.id,
+            name: r.name,
+            map: r.mapId,
+            players: r.getPlayersCount(),
+            maxPlayers: r.maxPlayers
+        }));
+        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'room_list', rooms: list }));
+    }
+
+    broadcastRoomList() {
+        for (let p of this.waitingPlayers) {
+            this.sendRoomList(p.ws);
         }
     }
 

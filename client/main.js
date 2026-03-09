@@ -22,22 +22,74 @@ class GameClient {
 
         this.state = 'MENU'; // MENU, LOBBY, PLAYING
         this.mainMenu = document.getElementById('mainMenu');
-        this.playButton = document.getElementById('playButton');
         this.statusText = document.getElementById('statusText');
         this.killfeed = document.getElementById('killfeed');
         this.scoreboard = document.getElementById('scoreboard');
         this.sbBlue = document.getElementById('sb-blue');
         this.sbRed = document.getElementById('sb-red');
         
-        this.playButton.addEventListener('click', () => {
-            this.playButton.style.display = 'none';
-            this.statusText.innerText = 'Connecting...';
-            this.network.connect();
+        // Lobby UI elements
+        this.playerNameInput = document.getElementById('playerNameInput');
+        this.roomNameInput = document.getElementById('roomNameInput');
+        this.mapSelect = document.getElementById('mapSelect');
+        this.addBotsInput = document.getElementById('addBotsInput');
+        this.createRoomBtn = document.getElementById('createRoomBtn');
+        this.roomListDOM = document.getElementById('roomList');
+        this.refreshRoomsBtn = document.getElementById('refreshRoomsBtn');
+
+        // Connect initially to get Server Browser data
+        this.network.connect();
+        
+        this.network.on('connect_success', () => {
+             this.statusText.innerText = 'Connected! Select a room.';
+             this.network.sendInput({ type: 'get_rooms' }); // Custom generic send hack
         });
 
-        this.network.on('lobby', (data) => {
-            this.state = 'LOBBY';
-            this.statusText.innerText = `Waiting for players... ${data.playersJoined}/${data.playersNeeded}`;
+        this.createRoomBtn.addEventListener('click', () => {
+            if (!this.network.isConnected) return;
+            const name = this.playerNameInput.value || 'Pilot';
+            this.statusText.innerText = 'Creating room...';
+            this.network.ws.send(JSON.stringify({
+                type: 'create_room',
+                playerName: name,
+                roomName: this.roomNameInput.value || 'Server',
+                mapId: this.mapSelect.value,
+                addBots: this.addBotsInput.checked
+            }));
+        });
+
+        this.refreshRoomsBtn.addEventListener('click', () => {
+             if (this.network.isConnected) {
+                 this.network.ws.send(JSON.stringify({ type: 'get_rooms' }));
+                 this.statusText.innerText = 'Refreshing...';
+             }
+        });
+
+        this.network.on('room_list', (rooms) => {
+            this.statusText.innerText = 'Connected! Select a room.';
+            this.roomListDOM.innerHTML = '';
+            if (rooms.length === 0) {
+                 this.roomListDOM.innerHTML = '<div style="text-align:center; color:#aaa; margin-top:50px;">No Active Servers Found. Host one!</div>';
+                 return;
+            }
+
+            rooms.forEach(room => {
+                const item = document.createElement('div');
+                item.className = 'room-item';
+                item.innerHTML = `
+                    <div class="room-info">
+                        <strong>${room.name}</strong>
+                        <span>Map: ${room.map.toUpperCase()} | Players: ${room.players}/${room.maxPlayers}</span>
+                    </div>
+                    <button class="join-btn">JOIN</button>
+                `;
+                item.querySelector('.join-btn').addEventListener('click', () => {
+                    const pname = this.playerNameInput.value || 'Pilot';
+                    this.network.ws.send(JSON.stringify({ type: 'join_room', roomId: room.id, playerName: pname }));
+                    this.statusText.innerText = 'Joining...';
+                });
+                this.roomListDOM.appendChild(item);
+            });
         });
 
         this.stateBuffer = [];
@@ -109,6 +161,14 @@ class GameClient {
             this.gameState = this.interpolateState(state0, state1, t);
         } else if (state0) {
             this.gameState = state0;
+        }
+
+        // Override local player to use the absolute latest server state (remove 100ms lag)
+        if (this.gameState && this.localPlayerId && this.stateBuffer.length > 0) {
+            const latestState = this.stateBuffer[this.stateBuffer.length - 1];
+            if (latestState.players[this.localPlayerId]) {
+                this.gameState.players[this.localPlayerId] = { ...latestState.players[this.localPlayerId] };
+            }
         }
 
         // Prepare local inputs

@@ -1,13 +1,12 @@
 class Player {
-    constructor(ws, id) {
+    constructor(ws, id, name) {
         this.ws = ws;
         this.id = id;
+        this.name = name || 'Pilot';
         this.x = Math.random() * 800 + 100; // placeholder spawn
         this.y = Math.random() * 600 + 100;
         this.rotation = 0;
         this.speed = 200; // pixels per second
-        this.team = 'none';
-        this.health = 100;
         this.team = 'none';
         this.health = 100;
         this.inputs = { up: false, down: false, left: false, right: false, mouse: {x: 0, y: 0, buttons: {left: false}} };
@@ -49,8 +48,8 @@ class PlayerManager {
         this.players = new Map();
     }
 
-    addPlayer(ws, id) {
-        this.players.set(id, new Player(ws, id));
+    addPlayer(ws, id, name) {
+        this.players.set(id, new Player(ws, id, name));
     }
 
     removePlayerByWs(ws) {
@@ -158,6 +157,7 @@ class PlayerManager {
         
         for (let [id, p] of this.players) {
             state[id] = { 
+                name: p.name,
                 x: p.x, y: p.y, 
                 rotation: p.rotation, 
                 team: p.team, 

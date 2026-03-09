@@ -19,10 +19,29 @@ class GameServer {
 
     handleConnection(ws) {
         console.log('New client connected');
-        // Let matchmaking handle this socket, assign to a room
+        // Let matchmaking handle this socket initially
         this.matchmaking.addPlayer(ws);
 
+        ws.on('message', (message) => {
+            try {
+                const data = JSON.parse(message);
+                
+                // If the socket has an active room assigned, route to the room
+                if (ws.roomId && this.matchmaking.getRoom(ws.roomId)) {
+                    this.matchmaking.getRoom(ws.roomId).handleMessage(ws, data);
+                } else {
+                    // Otherwise it's handled by matchmaking (Lobby)
+                    this.matchmaking.handleMessage(ws, data);
+                }
+            } catch (e) {
+                console.error('Invalid message', e);
+            }
+        });
+
         ws.on('close', () => {
+            if (ws.roomId && this.matchmaking.getRoom(ws.roomId)) {
+                this.matchmaking.getRoom(ws.roomId).removePlayer(ws);
+            }
             this.matchmaking.removePlayer(ws);
         });
     }

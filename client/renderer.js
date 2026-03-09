@@ -4,14 +4,31 @@ export class Renderer {
     }
 
     render(gameState, width, height, localPlayerId) {
-        // Clear canvas
-        this.ctx.fillStyle = '#111';
-        this.ctx.fillRect(0, 0, width, height);
-
         if (!gameState) {
+            this.ctx.fillStyle = '#111';
+            this.ctx.fillRect(0, 0, width, height);
             this.drawWaitingScreen(width, height);
             return;
         }
+
+        const mapId = gameState.mapId || 'neon_grid';
+        let bgColor = '#111';
+        let gridColor = '#222';
+        let lineWidth = 1;
+
+        if (mapId === 'cyber_facility') {
+            bgColor = '#1f1e24';
+            gridColor = '#ff6b0033'; // orange transparent
+            lineWidth = 2;
+        } else if (mapId === 'wasteland') {
+            bgColor = '#2a1a10';
+            gridColor = '#3a2a20'; // dark brown
+            lineWidth = 1;
+        }
+
+        // Clear canvas
+        this.ctx.fillStyle = bgColor;
+        this.ctx.fillRect(0, 0, width, height);
 
         // Find local player to act as camera focal point
         // Camera state members
@@ -32,8 +49,8 @@ export class Renderer {
             const offsetY = (height / 2) - this.cameraY;
             
             // Draw a subtle grid
-            this.ctx.strokeStyle = '#222';
-            this.ctx.lineWidth = 1;
+            this.ctx.strokeStyle = gridColor;
+            this.ctx.lineWidth = lineWidth;
             const gridSize = 100;
             const startX = Math.floor(-offsetX / gridSize) * gridSize - gridSize;
             const startY = Math.floor(-offsetY / gridSize) * gridSize - gridSize;
@@ -115,6 +132,12 @@ export class Renderer {
         this.ctx.fillStyle = '#0f0';
         const hpPercent = Math.max(0, player.health) / 100;
         this.ctx.fillRect(-20, -30, 40 * hpPercent, 6);
+        
+        // Name
+        this.ctx.fillStyle = '#fff';
+        this.ctx.font = '12px Courier New';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText(player.name || 'Pilot', 0, -35);
 
         // Target angle indicator (Gun barrel)
         this.ctx.save();

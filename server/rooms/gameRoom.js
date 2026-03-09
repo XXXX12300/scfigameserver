@@ -6,8 +6,12 @@ const RobotSystem = require('../robotSystem');
 const ScoreSystem = require('../scoreSystem');
 
 class GameRoom {
-    constructor(id) {
+    constructor(id, name, mapId, addBots) {
         this.id = id;
+        this.name = name || id;
+        this.mapId = mapId || 'neon_grid';
+        this.addBots = addBots || false;
+        this.maxPlayers = 16;
         
         this.playerManager = new PlayerManager(this);
         this.projectileSystem = new ProjectileSystem();
@@ -17,25 +21,41 @@ class GameRoom {
         this.scoreSystem = new ScoreSystem(this);
         
         this.teams = { blue: 0, red: 0 };
+        
+        // Add bots if requested
+        if (this.addBots) {
+            for(let i=0; i<4; i++) {
+                this.robotSystem.spawnRobot(Math.random()*800, Math.random()*600, 'turret', i%2===0?'blue':'red', 'bot');
+            }
+        }
     }
 
-    addPlayer(ws, id) {
+    addPlayer(ws, id, playerName) {
         const team = this.teams.blue <= this.teams.red ? 'blue' : 'red';
         this.teams[team]++;
         
-        this.playerManager.addPlayer(ws, id);
+        this.playerManager.addPlayer(ws, id, playerName);
         this.playerManager.players.get(id).team = team;
 
-        ws.on('message', (message) => {
-            try {
-                const data = JSON.parse(message);
-                if (data.type === 'input') {
+        // Immediately start match for this player
+        ws.send(JSON.stringify({
+            type: 'match_start',
+            roomId: this.id,
+            playerId: id,
+            team: team
+        }));
+    }
+
+    handleMessage(ws, data) {
+        if (data.type === 'input') {
+            // Find player ID for this socket
+            for (let [id, p] of this.playerManager.players) {
+                if (p.ws === ws) {
                     this.playerManager.handleInput(id, data.input);
+                    break;
                 }
-            } catch (e) {
-                console.error('Invalid message', e);
             }
-        });
+        }
     }
 
     removePlayer(ws) {
@@ -75,6 +95,7 @@ class GameRoom {
     broadcastState() {
         const state = {
             type: 'gameState',
+            mapId: this.mapId,
             players: this.playerManager.getState(),
             projectiles: this.projectileSystem.getState(),
             mechs: this.mechSystem.getState(),
