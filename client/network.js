@@ -6,7 +6,8 @@ export class Network {
     }
 
     connect() {
-        this.ws = new WebSocket('ws://' + window.location.host);
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        this.ws = new WebSocket(protocol + '//' + window.location.host);
         
         this.ws.onopen = () => {
             console.log('Connected to server');
