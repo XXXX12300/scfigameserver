@@ -1,0 +1,30 @@
+{
+  "id": "my_custom_map",
+  "name": "My Custom Map",
+  "width": 3000,
+  "height": 3000,
+  "baseTexture": "Concrete_01_Grey_1.png",
+  "controlZones": [],
+  "terrainRegions": [],
+  "spawnPoints": {
+    "blue": [],
+    "red": []
+  },
+  "buildings": [
+    {
+      "id": "bldg_1",
+      "bounds": {
+        "x": 0,
+        "y": 0,
+        "w": 0,
+        "h": 0
+      },
+      "walls": [],
+      "entrances": [],
+      "roofTexture": "",
+      "wallTexture": "",
+      "floorTexture": ""
+    }
+  ],
+  "obstacles": []
+}

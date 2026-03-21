@@ -4,12 +4,18 @@ class MechSystem {
     }
 
     spawnMech(x, y, type, team) {
+        let health = 1000;
+        if (type === 'titan') health = 2000;
+        else if (type === 'tank_1') health = 800;
+        else if (type === 'tank_2') health = 1500;
+        else if (type === 'tank_3') health = 2500;
+
         this.mechs.push({
             id: Math.random().toString(36).substr(2, 9),
             x, y,
             type,
             team,
-            health: type === 'titan' ? 2000 : 1000,
+            health: health,
             state: 'falling', // falling -> idle -> piloted
             owner: null, // pilot id
             fallProgress: 1.0 // 1.0 down to 0.0
@@ -20,7 +26,7 @@ class MechSystem {
         const dtSec = dt / 1000;
         for (let i = this.mechs.length - 1; i >= 0; i--) {
             let mech = this.mechs[i];
-            
+
             if (mech.health <= 0) {
                 this.mechs.splice(i, 1);
                 // TODO: Explosion event
@@ -44,18 +50,39 @@ class MechSystem {
             if (mech.state === 'idle' && mech.team === player.team) {
                 const dx = player.x - mech.x;
                 const dy = player.y - mech.y;
-                if (dx*dx + dy*dy < 50*50) { // Within 50 pixels
+                if (dx * dx + dy * dy < 50 * 50) { // Within 50 pixels
                     mech.state = 'piloted';
                     mech.owner = player.id;
-                    
-                    // Modify player stats
+
+                    // Save original loadout
+                    player.previousWeapon = player.currentWeapon;
+                    player.previousAmmo = player.ammo;
+
+                    // Modify player stats corresponding to mech
                     player.inMech = mech.id;
-                    player.health = mech.health; 
+                    player.health = mech.health;
                     player.maxHealth = mech.health;
-                    player.speed = 100; // Slower
-                    player.currentWeapon = 'rocket_launcher'; // Temp heavy weapon override
-                    
-                    // Hide player visually? Easiest is to sync mech position strictly to player position while piloted
+
+                    if (mech.type === 'titan') {
+                        player.speed = 100;
+                        player.currentWeapon = 'minigun'; // Temp heavy weapon override
+                    } else if (mech.type === 'tank_1') {
+                        player.speed = 120;
+                        player.currentWeapon = 'tank_1_turret';
+                    } else if (mech.type === 'tank_2') {
+                        player.speed = 90;
+                        player.currentWeapon = 'tank_2_turret';
+                    } else if (mech.type === 'tank_3') {
+                        player.speed = 70;
+                        player.currentWeapon = 'tank_3_turret';
+                    }
+
+                    // Fill Ammo to max instantly when entering
+                    if (player.gameRoom && player.gameRoom.weaponSystem && player.gameRoom.weaponSystem.weapons[player.currentWeapon]) {
+                        player.ammo = player.gameRoom.weaponSystem.weapons[player.currentWeapon].magSize;
+                        player.maxAmmo = player.ammo;
+                    }
+
                     return true;
                 }
             }
@@ -64,7 +91,19 @@ class MechSystem {
     }
 
     getState() {
-        return this.mechs;
+        return this.mechs.map(m => ({
+            id: m.id,
+            x: Math.round(m.x * 10) / 10,
+            y: Math.round(m.y * 10) / 10,
+            type: m.type,
+            team: m.team,
+            health: m.health,
+            state: m.state,
+            owner: m.owner,
+            hullRot: m.hullRot !== undefined ? Math.round(m.hullRot * 100) / 100 : 0,
+            turretRot: m.turretRot !== undefined ? Math.round(m.turretRot * 100) / 100 : 0,
+            fallProgress: Math.round(m.fallProgress * 100) / 100
+        }));
     }
 }
 

@@ -4,45 +4,52 @@ const RobotSystem = require('./robotSystem');
 const MechSystem = require('./mechSystem');
 
 class GameServer {
-    constructor(wss) {
-        this.wss = wss;
+    constructor(io) {
+        this.io = io;
         this.matchmaking = new Matchmaking();
-        this.tickRate = 30; // 30 updates per second
+        this.tickRate = 60; // 60 updates per second for smooth gameplay
         this.tickMs = 1000 / this.tickRate;
         this.lastUpdateTime = Date.now();
         this.isRunning = false;
 
-        this.wss.on('connection', (ws) => {
-            this.handleConnection(ws);
+        this.io.on('connection', (socket) => {
+            this.handleConnection(socket);
         });
     }
 
-    handleConnection(ws) {
-        console.log('New client connected');
-        // Let matchmaking handle this socket initially
-        this.matchmaking.addPlayer(ws);
+    handleConnection(socket) {
+        console.log('New client connected:', socket.id);
+        
+        // Add backwards-compatible .send() so existing room code works unchanged
+        socket.send = (jsonStr) => {
+            socket.emit('data', jsonStr);
+        };
+        // Socket.io sockets are always "open" while connected, so add readyState compat
+        Object.defineProperty(socket, 'readyState', {
+            get() { return socket.connected ? 1 : 3; }
+        });
 
-        ws.on('message', (message) => {
+        this.matchmaking.addPlayer(socket);
+
+        socket.on('data', (message) => {
             try {
                 const data = JSON.parse(message);
                 
-                // If the socket has an active room assigned, route to the room
-                if (ws.roomId && this.matchmaking.getRoom(ws.roomId)) {
-                    this.matchmaking.getRoom(ws.roomId).handleMessage(ws, data);
+                if (socket.roomId && this.matchmaking.getRoom(socket.roomId)) {
+                    this.matchmaking.getRoom(socket.roomId).handleMessage(socket, data);
                 } else {
-                    // Otherwise it's handled by matchmaking (Lobby)
-                    this.matchmaking.handleMessage(ws, data);
+                    this.matchmaking.handleMessage(socket, data);
                 }
             } catch (e) {
                 console.error('Invalid message', e);
             }
         });
 
-        ws.on('close', () => {
-            if (ws.roomId && this.matchmaking.getRoom(ws.roomId)) {
-                this.matchmaking.getRoom(ws.roomId).removePlayer(ws);
+        socket.on('disconnect', () => {
+            if (socket.roomId && this.matchmaking.getRoom(socket.roomId)) {
+                this.matchmaking.getRoom(socket.roomId).removePlayer(socket);
             }
-            this.matchmaking.removePlayer(ws);
+            this.matchmaking.removePlayer(socket);
         });
     }
 
@@ -67,12 +74,10 @@ class GameServer {
             this.lastUpdateTime = now;
         }
 
-        // Schedule next tick using setImmediate to unblock event loop
         setTimeout(() => this.loop(), Math.max(0, this.tickMs - (Date.now() - now)));
     }
 
     update(dt) {
-        // Update all rooms
         this.matchmaking.updateRooms(dt);
     }
 }

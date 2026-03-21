@@ -11,7 +11,7 @@ class Matchmaking {
     addPlayer(ws) {
         const playerProfile = { ws, id: this.generateId() };
         this.waitingPlayers.push(playerProfile);
-        
+
         // Wait briefly for client to be ready before sending room list
         setTimeout(() => {
             this.sendRoomList(ws);
@@ -35,27 +35,27 @@ class Matchmaking {
         }
         else if (data.type === 'create_room') {
             const roomId = `room_${this.roomIdCounter++}`;
-            const room = new GameRoom(roomId, data.roomName, data.mapId, data.addBots);
+            const room = new GameRoom(roomId, data.roomName, data.mapId, data.addBots, data.gameMode);
             this.rooms.push(room);
-            
+
             // Auto join the host
-            this.joinRoom(ws, roomId, data.playerName);
+            this.joinRoom(ws, roomId, data.playerName, data.weaponId, data.killstreakId);
         }
         else if (data.type === 'join_room') {
-            this.joinRoom(ws, data.roomId, data.playerName);
+            this.joinRoom(ws, data.roomId, data.playerName, data.weaponId, data.killstreakId);
         }
     }
 
-    joinRoom(ws, roomId, playerName) {
+    joinRoom(ws, roomId, playerName, weaponId, killstreakId) {
         const room = this.getRoom(roomId);
         if (!room) return;
-        
+
         // Remove from waiting
         const player = this.waitingPlayers.find(p => p.ws === ws) || { id: this.generateId() };
         this.waitingPlayers = this.waitingPlayers.filter(p => p.ws !== ws);
-        
+
         ws.roomId = roomId;
-        room.addPlayer(ws, player.id, playerName);
+        room.addPlayer(ws, player.id, playerName, weaponId, killstreakId);
 
         // Tell everyone in lobby the player count changed (or room was created)
         this.broadcastRoomList();
@@ -69,7 +69,7 @@ class Matchmaking {
             players: r.getPlayersCount(),
             maxPlayers: r.maxPlayers
         }));
-        if (ws.readyState === 1) ws.send(JSON.stringify({ type: 'room_list', rooms: list }));
+        if (ws) ws.send(JSON.stringify({ type: 'room_list', rooms: list }));
     }
 
     broadcastRoomList() {

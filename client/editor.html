@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mech Warfare - Advanced Map Editor</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/fabric.js/5.3.1/fabric.min.js"></script>
+    <script src="https://js.puter.com/v2/"></script>
+    <style>
+        body, html {
+            margin: 0; padding: 0; height: 100%;
+            background: #1e1e24; color: #fff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            background: #111; padding: 10px 20px;
+            display: flex; justify-content: space-between; align-items: center;
+            border-bottom: 2px solid #0ff;
+        }
+        .header h1 { margin: 0; font-size: 20px; color: #0ff; text-transform: uppercase; }
+        .header-buttons button {
+            background: #222; color: #0ff; border: 1px solid #0ff; padding: 8px 15px;
+            cursor: pointer; margin-left: 10px; text-transform: uppercase; font-weight: bold;
+        }
+        .header-buttons button:hover { background: #0ff; color: #000; }
+        
+        .main { display: flex; flex: 1; overflow: hidden; }
+        
+        .sidebar {
+            width: 300px; background: #1a1a20; border-right: 1px solid #333;
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        .sidebar h2 { margin: 0; padding: 10px; background: #111; font-size: 14px; text-transform: uppercase; color: #aaa; border-bottom: 1px solid #333; }
+        
+        /* Asset Browser */
+        .asset-list { padding: 10px; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+        .asset-item {
+            text-align: center; font-size: 10px; cursor: grab; background: #222; padding: 5px;
+            border: 1px solid transparent; border-radius: 4px; transition: 0.2s;
+        }
+        .asset-item:hover { border-color: #0ff; background: #2a2a30; }
+        .asset-item img { max-width: 100%; height: 50px; object-fit: contain; pointer-events: none; }
+        
+        /* Hierarchy */
+        .hierarchy { flex: 1; padding: 10px; }
+        .hierarchy-item {
+            padding: 5px; margin-bottom: 2px; background: #222; cursor: pointer; font-size: 12px;
+            display: flex; justify-content: space-between;
+        }
+        .hierarchy-item.active { background: #0ff; color: #000; font-weight: bold; }
+        .hierarchy-item .actions span { padding: 0 5px; cursor: pointer; color: #888; }
+        .hierarchy-item .actions span:hover { color: #fff; }
+        .hierarchy-item.active .actions span { color: #333; }
+        
+        .canvas-container-wrap {
+            flex: 1; background: #0a0a0f; position: relative;
+            overflow: auto; display: flex; justify-content: center; align-items: center;
+        }
+        
+        .right-panel {
+            width: 300px; background: #1a1a20; border-left: 1px solid #333;
+            display: flex; flex-direction: column; overflow-y: auto;
+        }
+        
+        .properties { padding: 15px; }
+        .prop-group { margin-bottom: 10px; }
+        .prop-group label { display: block; font-size: 11px; color: #888; margin-bottom: 3px; }
+        .prop-group input { width: 100%; padding: 5px; background: #111; border: 1px solid #444; color: #fff; box-sizing: border-box; }
+        
+        /* AI Panel */
+        .ai-panel { flex: 1; border-top: 1px solid #333; display: flex; flex-direction: column; }
+        .ai-chat { flex: 1; padding: 10px; overflow-y: auto; font-size: 12px; }
+        .ai-msg { margin-bottom: 10px; padding: 8px; border-radius: 4px; }
+        .ai-msg.user { background: #2a2a35; }
+        .ai-msg.ai { background: rgba(0, 255, 255, 0.1); border-left: 2px solid #0ff; }
+        .ai-input-area { padding: 10px; background: #111; }
+        .ai-input-area textarea { width: 100%; height: 60px; background: #000; border: 1px solid #0ff; color: #fff; padding: 5px; box-sizing: border-box; resize: none; margin-bottom: 5px; }
+        .ai-input-area button { width: 100%; padding: 8px; background: #0ff; color: #000; border: none; font-weight: bold; cursor: pointer; }
+        .ai-input-area button:hover { background: #fff; }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>Map Editor</h1>
+    <div class="header-buttons">
+        <button id="btnMapSettings">Map Settings</button>
+        <button id="btnTestMode" style="background:#52a; color:#fdf; border-color:#d5f;">Test In Editor</button>
+        <button id="btnSave">Save & Export</button>
+        <button id="btnPlay">Play Offline</button>
+    </div>
+</div>
+
+<div class="main">
+    <div class="sidebar">
+        <h2>Hierarchy / Layers</h2>
+        <div class="hierarchy" id="hierarchyList" style="flex:1; overflow-y:auto; border-bottom:1px solid #333;">
+            <!-- Layers -->
+        </div>
+        
+        <div style="padding: 10px;">
+            <button class="header-buttons" id="btnOpenAssets" style="width:100%; padding:15px; background:#112; color:#0ff; border:1px solid #0ff; cursor:pointer; font-weight:bold; font-size:14px;">📦 Open Asset Browser</button>
+        </div>
+    </div>
+    
+    <div class="canvas-container-wrap" id="canvasWrap">
+        <!-- Fabric JS uses an ID for init -->
+        <canvas id="mapCanvas"></canvas>
+    </div>
+    
+    <div class="right-panel">
+        <h2>Properties</h2>
+        <div class="properties" id="propertiesPanel">
+            <div class="prop-group">
+                <label>Type</label>
+                <input type="text" id="propType" readonly>
+            </div>
+            <div class="prop-group">
+                <label>X Position</label>
+                <input type="number" id="propX">
+            </div>
+            <div class="prop-group">
+                <label>Y Position</label>
+                <input type="number" id="propY">
+            </div>
+            <div class="prop-group">
+                <label>Width</label>
+                <input type="number" id="propW">
+            </div>
+            <div class="prop-group">
+                <label>Height</label>
+                <input type="number" id="propH">
+            </div>
+            <div class="prop-group">
+                <label>Rotation</label>
+                <input type="number" id="propAngle">
+            </div>
+            <div class="prop-group">
+                <label>Texture Path</label>
+                <input type="text" id="propTexture">
+            </div>
+            <button class="header-buttons" id="btnGroup" style="width:100%; padding:5px; background:#333; color:#fff; border:1px solid #555; margin-bottom:5px;">Group Selection</button>
+            <button class="header-buttons" id="btnUngroup" style="width:100%; padding:5px; background:#333; color:#fff; border:1px solid #555; margin-bottom:5px;">Ungroup</button>
+            <button class="header-buttons" id="btnDuplicate" style="width:100%; padding:5px; background:#33a; color:#aff; border:1px solid #55f; margin-bottom:5px;">Duplicate Object</button>
+            <button class="header-buttons" id="btnDelete" style="width:100%; padding:5px; background:#522; color:#f55; border:1px solid #f55;">Delete Object</button>
+        </div>
+        
+        <h2>AI Architect</h2>
+        <div class="ai-panel">
+            <div class="ai-chat" id="aiChat">
+                <div class="ai-msg ai">Hello! I am your Puter AI Architect. Describe what you want me to build (e.g. "Create a small house" or "Add a forest area") and I'll do my best.</div>
+            </div>
+            <div class="ai-input-area">
+                <textarea id="aiPrompt" placeholder="Describe what to add..."></textarea>
+                <button id="btnAiSend">Generate with puter.js</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Asset Modal -->
+<div id="assetModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:1000; align-items:center; justify-content:center;">
+    <div style="background:#1a1a20; width:85%; height:85%; border:2px solid #0ff; display:flex; flex-direction:column; box-shadow:0 0 30px rgba(0,255,255,0.2);">
+        <div style="padding:15px; border-bottom:1px solid #333; display:flex; justify-content:space-between; align-items:center;">
+            <h2 style="margin:0; color:#0ff; text-transform:uppercase;">Asset Browser</h2>
+            <input type="text" id="assetSearch" placeholder="Search assets..." style="padding:10px; background:#111; color:#fff; border:1px solid #444; width:300px; font-size:14px;">
+            <button id="btnCloseAssets" style="background:transparent; color:#f55; border:none; cursor:pointer; font-size:24px; font-weight:bold;">✖</button>
+        </div>
+        <div style="display:flex; flex:1; overflow:hidden;">
+            <div id="assetCategoryContainer" style="width:220px; background:#111; border-right:1px solid #333; overflow-y:auto;">
+                <!-- Category Buttons -->
+            </div>
+            <div id="assetGrid" style="flex:1; padding:20px; overflow-y:auto; display:grid; grid-template-columns:repeat(auto-fill, minmax(140px, 1fr)); gap:20px; align-content:start;">
+                <!-- Asset Items -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- MAP DATA GLOBALS ---
+    let mapData = {
+        id: 'custom_map_' + Date.now(),
+        name: 'My Custom Map',
+        width: 3000,
+        height: 3000,
+        baseTexture: 'Concrete_01_Grey_1.png',
+        controlZones: [],
+        terrainRegions: [],
+        spawnPoints: { blue: [], red: [] },
+        buildings: [],
+        obstacles: []
+    };
+
+    // --- FABRIC INIT ---
+    const canvas = new fabric.Canvas('mapCanvas', {
+        width: mapData.width,
+        height: mapData.height,
+        backgroundColor: '#222',
+        preserveObjectStacking: true,
+        selectionKey: 'shiftKey' // Allows starting selection box even over objects by holding Shift
+    });
+    
+    // Zoom/Pan
+    canvas.on('mouse:wheel', function(opt) {
+        var delta = opt.e.deltaY;
+        var zoom = canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        if (zoom > 2) zoom = 2;
+        if (zoom < 0.1) zoom = 0.1;
+        canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+    });
+    
+    // Middle click pan
+    let isDragging = false;
+    let lastPosX = 0;
+    let lastPosY = 0;
+    canvas.on('mouse:down', function(opt) {
+        if (opt.e.button === 1 || opt.e.altKey) { // Middle click or Alt+Click
+            isDragging = true;
+            canvas.selection = false;
+            lastPosX = opt.e.clientX;
+            lastPosY = opt.e.clientY;
+        }
+    });
+    canvas.on('mouse:move', function(opt) {
+        if (isDragging) {
+            var e = opt.e;
+            var vpt = canvas.viewportTransform;
+            vpt[4] += e.clientX - lastPosX;
+            vpt[5] += e.clientY - lastPosY;
+            canvas.requestRenderAll();
+            lastPosX = e.clientX;
+            lastPosY = e.clientY;
+        }
+    });
+    canvas.on('mouse:up', function(opt) {
+        isDragging = false;
+        canvas.selection = true;
+    });
+
+    // Handle Selection changes
+    canvas.on('selection:created', updateProperties);
+    canvas.on('selection:updated', updateProperties);
+    canvas.on('selection:cleared', clearProperties);
+    canvas.on('object:modified', updateProperties);
+    
+    const propX = document.getElementById('propX');
+    const propY = document.getElementById('propY');
+    const propW = document.getElementById('propW');
+    const propH = document.getElementById('propH');
+    const propAngle = document.getElementById('propAngle');
+    const propTexture = document.getElementById('propTexture');
+    
+    function updateProperties() {
+        const obj = canvas.getActiveObject();
+        if(!obj) return;
+        document.getElementById('propType').value = obj.type === 'group' ? 'Group' : obj.mapType || 'Unknown';
+        propX.value = Math.round(obj.left);
+        propY.value = Math.round(obj.top);
+        propAngle.value = Math.round(obj.angle || 0);
+        
+        if (obj.type !== 'group') {
+            propW.value = Math.round(obj.width * obj.scaleX);
+            propH.value = Math.round(obj.height * obj.scaleY);
+            propTexture.value = obj.texturePath || '';
+            propW.disabled = false;
+            propH.disabled = false;
+            propTexture.disabled = false;
+        } else {
+            propW.value = ''; propH.value = ''; propTexture.value = '';
+            propW.disabled = true; propH.disabled = true; propTexture.disabled = true;
+        }
+        updateHierarchy();
+    }
+    
+    function clearProperties() {
+        document.getElementById('propType').value = '';
+        propX.value = ''; propY.value = ''; propW.value = ''; propH.value = ''; propAngle.value = ''; propTexture.value = '';
+    }
+
+    [propX, propY, propW, propH, propAngle].forEach(el => {
+        el.addEventListener('change', (e) => {
+            const obj = canvas.getActiveObject();
+            if (!obj) return;
+            if (e.target === propX) obj.set('left', parseFloat(propX.value));
+            if (e.target === propY) obj.set('top', parseFloat(propY.value));
+            if (e.target === propAngle) obj.set('angle', parseFloat(propAngle.value));
+            if (obj.type !== 'group') {
+                if (e.target === propW) obj.set('scaleX', parseFloat(propW.value) / obj.width);
+                if (e.target === propH) obj.set('scaleY', parseFloat(propH.value) / obj.height);
+            }
+            obj.setCoords();
+            canvas.renderAll();
+        });
+    });
+
+    // Grouping
+    document.getElementById('btnGroup').addEventListener('click', () => {
+        if (!canvas.getActiveObject() || canvas.getActiveObject().type !== 'activeSelection') return;
+        canvas.getActiveObject().toGroup();
+        canvas.requestRenderAll();
+        updateHierarchy();
+    });
+    document.getElementById('btnUngroup').addEventListener('click', () => {
+        if (!canvas.getActiveObject() || canvas.getActiveObject().type !== 'group') return;
+        canvas.getActiveObject().toActiveSelection();
+        canvas.requestRenderAll();
+        updateHierarchy();
+    });
+    // Duplicate
+    document.getElementById('btnDuplicate').addEventListener('click', duplicateSelected);
+    
+    document.getElementById('btnDelete').addEventListener('click', () => {
+        var activeObjects = canvas.getActiveObjects();
+        if (activeObjects.length) {
+            canvas.discardActiveObject();
+            activeObjects.forEach(obj => canvas.remove(obj));
+            updateHierarchy();
+        }
+    });
+
+    function duplicateSelected() {
+        const _clipboard = canvas.getActiveObject();
+        if (!_clipboard) return;
+        _clipboard.clone(function(cloned) {
+            canvas.discardActiveObject();
+            cloned.set({
+                left: cloned.left + 50,
+                top: cloned.top + 50,
+                evented: true
+            });
+            if (cloned.type === 'activeSelection') {
+                cloned.canvas = canvas;
+                cloned.forEachObject(function(obj) { canvas.add(obj); });
+                cloned.setCoords();
+            } else {
+                canvas.add(cloned);
+            }
+            // Preserve our custom properties
+            if (_clipboard.type !== 'activeSelection') {
+                if(_clipboard.mapType) cloned.mapType = _clipboard.mapType;
+                if(_clipboard.texturePath) cloned.texturePath = _clipboard.texturePath;
+                if(_clipboard.mapName) cloned.mapName = _clipboard.mapName;
+                if(_clipboard.lockUniScaling !== undefined) {
+                    cloned.lockUniScaling = _clipboard.lockUniScaling;
+                }
+            } else {
+                const orgObjs = _clipboard.getObjects();
+                cloned.getObjects().forEach((o, i) => {
+                    o.mapType = orgObjs[i].mapType;
+                    o.texturePath = orgObjs[i].texturePath;
+                    o.mapName = orgObjs[i].mapName;
+                    o.lockUniScaling = orgObjs[i].lockUniScaling;
+                });
+            }
+            
+            _clipboard.top += 50; _clipboard.left += 50;
+            canvas.setActiveObject(cloned);
+            canvas.requestRenderAll();
+            updateHierarchy();
+        });
+    }
+    
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Delete') document.getElementById('btnDelete').click();
+        if ((e.ctrlKey || e.metaKey) && (e.key === 'd' || e.key === 'D')) {
+            e.preventDefault();
+            duplicateSelected();
+        }
+        
+        // Nudge with arrow keys
+        const activeObj = canvas.getActiveObject();
+        if (activeObj && !testModeActive && document.activeElement.tagName !== 'INPUT' && document.activeElement.tagName !== 'TEXTAREA') {
+            const shift = e.shiftKey ? 10 : 1;
+            if (e.key === 'ArrowUp') { activeObj.top -= shift; activeObj.setCoords(); canvas.requestRenderAll(); updateProperties(); e.preventDefault(); }
+            if (e.key === 'ArrowDown') { activeObj.top += shift; activeObj.setCoords(); canvas.requestRenderAll(); updateProperties(); e.preventDefault(); }
+            if (e.key === 'ArrowLeft') { activeObj.left -= shift; activeObj.setCoords(); canvas.requestRenderAll(); updateProperties(); e.preventDefault(); }
+            if (e.key === 'ArrowRight') { activeObj.left += shift; activeObj.setCoords(); canvas.requestRenderAll(); updateProperties(); e.preventDefault(); }
+        }
+    });
+
+    // --- ASSETS CATALOG & MODAL ---
+    const assetModal = document.getElementById('assetModal');
+    const assetGrid = document.getElementById('assetGrid');
+    const assetCategoryContainer = document.getElementById('assetCategoryContainer');
+    const assetSearch = document.getElementById('assetSearch');
+    
+    document.getElementById('btnOpenAssets').onclick = () => { assetModal.style.display = 'flex'; renderGrid(); };
+    document.getElementById('btnCloseAssets').onclick = () => assetModal.style.display = 'none';
+
+    let catalog = [
+        { label: 'Blue Spawn', texture: '', type: 'spawn_blue', category: 'Logic', w: 100, h: 100, color: 'rgba(0,0,255,0.8)' },
+        { label: 'Red Spawn', texture: '', type: 'spawn_red', category: 'Logic', w: 100, h: 100, color: 'rgba(255,0,0,0.8)' },
+        { label: 'Control Zone', texture: '', type: 'zone', category: 'Logic', w: 250, h: 250, color: 'rgba(0,255,0,0.3)', isCircle: true }
+    ];
+    let selectedCategory = 'All';
+
+    function renderCategoryButtons() {
+        const categories = ['All', ...new Set(catalog.map(c => c.category))];
+        assetCategoryContainer.innerHTML = '';
+        categories.forEach(cat => {
+            const btn = document.createElement('div');
+            btn.style.cssText = `padding:15px; cursor:pointer; color:#aaa; border-bottom:1px solid #222; text-transform:uppercase; font-size:12px; font-weight:bold; background:${selectedCategory===cat?'#2a2a35':'transparent'}; color:${selectedCategory===cat?'#0ff':'#aaa'} ; border-left:${selectedCategory===cat?'4px solid #0ff':'4px solid transparent'}`;
+            btn.innerText = cat;
+            btn.onclick = () => {
+                selectedCategory = cat;
+                renderCategoryButtons();
+                renderGrid();
+            };
+            assetCategoryContainer.appendChild(btn);
+        });
+    }
+
+    function renderGrid() {
+        assetGrid.innerHTML = '';
+        const searchVal = assetSearch.value.toLowerCase();
+        
+        catalog.forEach(item => {
+            if (selectedCategory !== 'All' && item.category !== selectedCategory) return;
+            if (searchVal && !item.label.toLowerCase().includes(searchVal)) return;
+
+            const div = document.createElement('div');
+            div.style.cssText = 'background:#222; border:1px solid #333; padding:10px; border-radius:4px; text-align:center; cursor:grab; transition:0.2s;';
+            div.onmouseover = () => div.style.borderColor = '#0ff';
+            div.onmouseout = () => div.style.borderColor = '#333';
+            
+            if (item.texture && item.texture !== '') {
+                const img = document.createElement('img');
+                img.src = '/Sprites/' + item.texture;
+                img.style.cssText = 'max-width:100%; height:60px; object-fit:contain; margin-bottom:5px; pointer-events:none;';
+                img.onerror = () => { img.style.display='none'; }
+                div.appendChild(img);
+            } else {
+                const ph = document.createElement('div');
+                ph.style.cssText = `height:60px; background:${item.color}; margin-bottom:5px;`;
+                div.appendChild(ph);
+            }
+            
+            const txt = document.createElement('div');
+            txt.innerText = item.label;
+            txt.style.cssText = 'font-size:11px; color:#ccc; word-wrap:break-word;';
+            div.appendChild(txt);
+            
+            div.onclick = () => {
+                assetModal.style.display = 'none';
+                // Get center of viewport
+                const vpt = canvas.viewportTransform;
+                const canvasW = canvas.getWidth();
+                const canvasH = canvas.getHeight();
+                const centerX = (canvasW / 2 - vpt[4]) / vpt[0];
+                const centerY = (canvasH / 2 - vpt[5]) / vpt[3];
+                createMapObject(item, centerX, centerY);
+            };
+            assetGrid.appendChild(div);
+        });
+    }
+
+    assetSearch.addEventListener('input', renderGrid);
+
+    // Fetch dynamic assets from backend
+    fetch('/api/assets').then(r => r.json()).then(files => {
+        files.forEach(f => {
+            let type = 'obstacle';
+            const lw = f.toLowerCase();
+            if (lw.includes('terrain') || lw.includes('concrete') || lw.includes('grass') || lw.includes('water') || lw.includes('wood') || lw.includes('road')) type = 'terrain';
+            else if (lw.includes('wall') || lw.includes('cobble')) type = 'wall';
+            
+            // Extract category from folder path
+            const parts = f.split('/');
+            let category = parts.length > 1 ? parts[0] : 'Misc';
+            
+            if (category === 'Misc') return; // Exclude uncategorized/MISC objects as requested
+            
+            catalog.push({
+                label: parts.pop().replace('.png', '').replace(/_/g, ' '),
+                texture: f,
+                category: category,
+                type: type,
+                color: 'transparent'
+            });
+        });
+        catalog.sort((a,b) => a.label.localeCompare(b.label)); // ABC order
+        renderCategoryButtons();
+        renderGrid();
+    });
+
+    // Dropping on canvas
+    const canvasWrap = document.getElementById('canvasWrap');
+    canvasWrap.addEventListener('dragover', e => e.preventDefault());
+    canvasWrap.addEventListener('drop', e => {
+        e.preventDefault();
+        const data = JSON.parse(e.dataTransfer.getData('application/json'));
+        
+        let pointer = canvas.getPointer(e);
+        createMapObject(data, pointer.x, pointer.y);
+    });
+
+    function createMapObject(data, x, y) {
+        // Objects that should remain their exact sprite sizes (obstacles, furniture, etc)
+        if (data.texture && data.texture !== '' && data.type !== 'terrain' && data.type !== 'zone') {
+            fabric.Image.fromURL('/Sprites/' + data.texture, (img) => {
+                if(img.width <= 0) return;
+                
+                // --- REFERENCE SCALING FIX ---
+                // Native sprites are huge (256-512px). We need scales that match player size (64px).
+                let startScale = 1;
+                const pathLower = data.texture.toLowerCase();
+                
+                // Specific dimensions based on mapSystem.js references
+                if (pathLower.includes('vehicles')) {
+                    // Vehicles are rendered at w=100 h=200 in the game, but their sprite padded size is 256. 
+                    // In the editor, a scale of 0.8 to 1.0 looks correct.
+                    startScale = 1.0; 
+                } else if (pathLower.includes('beds')) {
+                    startScale = 120 / img.width; // Bed_Grey is 120x180
+                } else if (pathLower.includes('sofa')) {
+                    startScale = 160 / img.width; // Sofa is 160x80
+                } else if (pathLower.includes('chairs')) {
+                    startScale = 80 / img.width; // Chair is 80x80
+                } else if (pathLower.includes('plants')) {
+                    startScale = 80 / img.width;
+                } else if (pathLower.includes('tables')) {
+                    startScale = 120 / img.width; // Average table 120 width
+                } else if (pathLower.includes('electronics') || pathLower.includes('tv')) {
+                    startScale = 100 / img.width;
+                } else {
+                    // Generic shrink for other unnamed props
+                    if (img.width > 200 || img.height > 200) {
+                        startScale = 100 / Math.max(img.width, img.height);
+                    }
+                }
+                
+                const lockResize = data.type !== 'wall';
+                
+                img.set({
+                    left: x - (img.width * startScale)/2, 
+                    top: y - (img.height * startScale)/2,
+                    scaleX: startScale,
+                    scaleY: startScale,
+                    mapType: data.type, 
+                    texturePath: data.texture, 
+                    mapName: data.label,
+                    lockUniScaling: lockResize
+                });
+                
+                if (lockResize) {
+                    // Hide side handles to strictly enforce proportional scaling for objects
+                    img.setControlsVisibility({ mt: false, mb: false, ml: false, mr: false });
+                }
+                
+                finishObjectSetup(img, data);
+            });
+            return;
+        }
+
+        // Logic (Spawns/Zones) or Terrain (repeating patterns arbitrary size)
+        let obj;
+        const w = data.w || 200;
+        const h = data.h || 200;
+        const opts = { left: x - w/2, top: y - h/2, width: w, height: h, fill: data.color };
+
+        if (data.isCircle) {
+            opts.radius = Math.max(w, h)/2;
+            delete opts.width; delete opts.height;
+            opts.left = x - opts.radius; opts.top = y - opts.radius;
+            obj = new fabric.Circle(opts);
+        } else {
+            obj = new fabric.Rect(opts);
+        }
+
+        obj.mapType = data.type;
+        obj.texturePath = data.texture;
+        obj.mapName = data.label;
+        
+        if (data.texture && data.texture !== '') {
+            fabric.Image.fromURL('/Sprites/' + data.texture, (img) => {
+                if (img.width > 0) {
+                    const pattern = new fabric.Pattern({ source: img.getElement(), repeat: 'repeat' });
+                    obj.set('fill', pattern);
+                    
+                    // If terrain, ensure when it resizes the pattern continues tiling instead of stretching
+                    if (data.type === 'terrain') {
+                        obj.on('scaling', function() {
+                            this.set({
+                                width: this.width * this.scaleX,
+                                height: this.height * this.scaleY,
+                                scaleX: 1,
+                                scaleY: 1
+                            });
+                        });
+                    }
+                    
+                    canvas.renderAll();
+                } else obj.set('fill', 'rgba(100,100,100,0.5)'); 
+            });
+        }
+        finishObjectSetup(obj, data);
+    }
+    
+    function finishObjectSetup(obj, data) {
+        canvas.add(obj);
+        
+        // Auto-sorting implementation based on type predefined layers
+        if (data.type === 'terrain') obj.sendToBack();  // Terrain always bottom
+        else if (data.type === 'zone') obj.sendToBack();  // Zones slightly above mostly
+        else if (data.type === 'spawn_blue' || data.type === 'spawn_red') obj.bringToFront(); // Spawns always visible
+        else {
+            // Walls and items keep their order, but should be above terrain.
+        }
+
+        canvas.setActiveObject(obj);
+        updateHierarchy();
+    }
+
+    // --- HIERARCHY ---
+    function updateHierarchy() {
+        const hList = document.getElementById('hierarchyList');
+        hList.innerHTML = '';
+        const objects = canvas.getObjects();
+        objects.reverse().forEach((obj, idx) => {
+            const div = document.createElement('div');
+            div.className = 'hierarchy-item' + (canvas.getActiveObject() === obj ? ' active' : '');
+            div.innerHTML = `<span>${obj.mapName || obj.type}</span>
+                <div class="actions">
+                    <span title="Bring Forward" onclick="moveUp(${idx})">▲</span>
+                    <span title="Send Backward" onclick="moveDown(${idx})">▼</span>
+                </div>`;
+            div.onclick = (e) => {
+                if (e.target.tagName !== 'SPAN') {
+                    canvas.setActiveObject(obj);
+                    canvas.requestRenderAll();
+                }
+            };
+            hList.appendChild(div);
+        });
+    }
+
+    window.moveUp = (reverseIdx) => {
+        const objects = canvas.getObjects();
+        const obj = objects[objects.length - 1 - reverseIdx];
+        if (obj) obj.bringForward(); updateHierarchy();
+    };
+    window.moveDown = (reverseIdx) => {
+        const objects = canvas.getObjects();
+        const obj = objects[objects.length - 1 - reverseIdx];
+        if (obj) obj.sendBackwards(); updateHierarchy();
+    };
+
+
+    // --- EXPORT TO JSON ---
+    document.getElementById('btnSave').addEventListener('click', async () => {
+        let hasBlue = false, hasRed = false;
+        canvas.getObjects().forEach(obj => {
+            if (obj.mapType === 'spawn_blue') hasBlue = true;
+            if (obj.mapType === 'spawn_red') hasRed = true;
+        });
+        
+        if (!hasBlue || !hasRed) {
+            alert("ERROR: You MUST add at least one Blue Spawn and one Red Spawn to the map before exporting.");
+            return;
+        }
+
+        const newMap = {
+            id: 'custom_map_' + Date.now(),
+            name: prompt("Map Name:", "My Custom Map"),
+            width: mapData.width,
+            height: mapData.height,
+            baseTexture: mapData.baseTexture,
+            controlZones: [],
+            terrainRegions: [],
+            spawnPoints: { blue: [], red: [] },
+            buildings: [{ id: 'bldg_1', bounds: {x:0,y:0,w:0,h:0}, walls: [], entrances: [], roofTexture:'', wallTexture:'', floorTexture:'' }], // Add wrapper building for walls to work globally
+            obstacles: []
+        };
+        if(!newMap.name) return;
+        newMap.id = newMap.name.toLowerCase().replace(/[^a-z0-9]/g, '_');
+
+        canvas.getObjects().forEach(obj => {
+            const x = obj.left; const y = obj.top;
+            const w = obj.width * obj.scaleX; const h = obj.height * obj.scaleY;
+            const tex = obj.texturePath || '';
+            const angle = obj.angle || 0; // The game server mapSystem doesn't actually support angled rect collisions natively, but we'll export it anyway.
+
+            if (obj.mapType === 'spawn_blue') newMap.spawnPoints.blue.push({x: x+w/2, y: y+h/2});
+            else if (obj.mapType === 'spawn_red') newMap.spawnPoints.red.push({x: x+w/2, y: y+h/2});
+            else if (obj.mapType === 'zone') newMap.controlZones.push({id: 'z_'+Date.now(), x: x+obj.radius, y: y+obj.radius, radius: obj.radius, owner: null, progress: 0});
+            else if (obj.mapType === 'terrain') newMap.terrainRegions.push({x, y, w, h, texture: tex, type: 'walkable'});
+            else if (obj.mapType === 'wall') newMap.buildings[0].walls.push({x, y, w, h}); // Attach walls to dummy building
+            else newMap.obstacles.push({x, y, w, h, texture: tex, type: 'building'});
+        });
+
+        const res = await fetch('/api/maps', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(newMap)
+        });
+        const data = await res.json();
+        if (data.success) {
+            alert("Map Saved successfully! You can now load it in the Main Menu.");
+            mapData.id = data.id;
+        } else {
+            alert("Error saving map");
+        }
+    });
+
+    document.getElementById('btnPlay').addEventListener('click', () => {
+        if (!mapData.id) {
+            alert("Please save the map first!"); return;
+        }
+        // Save first just in case
+        document.getElementById('btnSave').click();
+        
+        // Open the game directly and use localstorage to force creation
+        localStorage.setItem('tdm_name', 'Editor_Tester');
+        localStorage.setItem('editor_force_map', mapData.id);
+        
+        alert("Instructions: Go to the game lobby, you should now see your map in the map list. Select it and click Launch.");
+        window.open('/', '_blank');
+    });
+
+    // --- MAP SETTINGS ---
+    document.getElementById('btnMapSettings').addEventListener('click', () => {
+        const newName = prompt("Map Name:", mapData.name);
+        if(!newName) return;
+        const newW = parseInt(prompt("Map Width (px):", mapData.width));
+        const newH = parseInt(prompt("Map Height (px):", mapData.height));
+        
+        if (newW && newH) {
+            mapData.name = newName;
+            mapData.width = newW;
+            mapData.height = newH;
+            canvas.setWidth(newW);
+            canvas.setHeight(newH);
+            canvas.requestRenderAll();
+        }
+    });
+
+    // --- IN-EDITOR PLAYER TEST ---
+    let testModeActive = false;
+    let testPlayer = null;
+    let keys = {w:false, a:false, s:false, d:false};
+
+    document.getElementById('btnTestMode').addEventListener('click', () => {
+        if (testModeActive) {
+            // Stop test
+            testModeActive = false;
+            canvas.remove(testPlayer);
+            testPlayer = null;
+            document.getElementById('btnTestMode').innerText = "Test In Editor";
+            document.getElementById('btnTestMode').style.background = "#52a";
+            return;
+        }
+        
+        // Start test
+        testModeActive = true;
+        document.getElementById('btnTestMode').innerText = "Stop Testing [ESC]";
+        document.getElementById('btnTestMode').style.background = "#a22";
+        
+        // Get center of viewport to spawn
+        const vpt = canvas.viewportTransform;
+        const canvasW = canvas.getWidth();
+        const canvasH = canvas.getHeight();
+        const centerX = (canvasW / 2 - vpt[4]) / vpt[0];
+        const centerY = (canvasH / 2 - vpt[5]) / vpt[3];
+
+        testPlayer = new fabric.Circle({
+            radius: 32, fill: '#80f', left: centerX - 32, top: centerY - 32,
+            selectable: false, evented: false, opacity: 0.9, stroke: '#fff', strokeWidth: 2
+        });
+        canvas.add(testPlayer);
+        testPlayer.bringToFront();
+        
+        requestAnimationFrame(testLoop);
+    });
+
+    window.addEventListener('keydown', (e) => {
+        if (!testModeActive) return;
+        const k = e.key.toLowerCase();
+        if (k==='w') keys.w = true;
+        if (k==='a') keys.a = true;
+        if (k==='s') keys.s = true;
+        if (k==='d') keys.d = true;
+        if (e.key === 'Escape') document.getElementById('btnTestMode').click();
+    });
+    window.addEventListener('keyup', (e) => {
+        const k = e.key.toLowerCase();
+        if (k==='w') keys.w = false;
+        if (k==='a') keys.a = false;
+        if (k==='s') keys.s = false;
+        if (k==='d') keys.d = false;
+    });
+
+    function testLoop() {
+        if (!testModeActive) return;
+        
+        const speed = 10;
+        let dx = 0, dy = 0;
+        if (keys.w) dy -= speed;
+        if (keys.s) dy += speed;
+        if (keys.a) dx -= speed;
+        if (keys.d) dx += speed;
+
+        if (dx !== 0 || dy !== 0) {
+            testPlayer.left += dx;
+            testPlayer.top += dy;
+            testPlayer.setCoords();
+            
+            // Pan camera to follow
+            const vpt = canvas.viewportTransform;
+            vpt[4] -= dx * vpt[0];
+            vpt[5] -= dy * vpt[3];
+            
+            canvas.requestRenderAll();
+        }
+        requestAnimationFrame(testLoop);
+    }
+
+    // --- AI ARCHITECT ---
+    const chatBox = document.getElementById('aiChat');
+    function addMsg(text, type) {
+        const div = document.createElement('div');
+        div.className = `ai-msg ${type}`;
+        div.innerText = text;
+        chatBox.appendChild(div);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    document.getElementById('btnAiSend').addEventListener('click', async () => {
+        const promptTxt = document.getElementById('aiPrompt').value;
+        if (!promptTxt) return;
+
+        addMsg(promptTxt, 'user');
+        document.getElementById('aiPrompt').value = '';
+        addMsg('Thinking using Puter AI...', 'ai');
+
+        // Extract a few valid textures for the AI to know about
+        const availableTextures = catalog.map(c => c.texture).filter(t => t !== '').slice(0, 150).join(", ");
+
+        const systemPrompt = `You are an AI Map Architect for a top-down shooter game. 
+Return ONLY JSON. No markdown blocking, no HTML, no explanations. 
+The canvas is ${mapData.width}x${mapData.height}.
+Return an array of objects to place on the map in this format:
+[ { "type": "wall" | "obstacle" | "terrain" | "spawn_blue" | "spawn_red" | "zone", "x": 100, "y": 100, "w": 50, "h": 50, "texture": "PATH_HERE", "label": "Wall" } ]
+Some valid textures you can use: ${availableTextures}.
+Make sure to place items logically (e.g., spawn points shouldn't be trapped).`;
+
+        try {
+            // Using puter.js
+            const response = await puter.ai.chat(
+                systemPrompt + "\nUser Request: " + promptTxt,
+                { model: 'claude-3-5-sonnet' }
+            );
+
+            const aiJson = response.message.content.trim();
+            // Remove markdown format if AI ignores instructions
+            const rawJson = aiJson.replace(/```json/g, '').replace(/```/g, '');
+            
+            const objects = JSON.parse(rawJson);
+            objects.forEach(obj => {
+                createMapObject({
+                    type: obj.type, w: obj.w, h: obj.h, texture: obj.texture, 
+                    color: obj.type === 'zone' ? 'rgba(0,255,0,0.3)' : 'rgba(100,100,100,1)',
+                    label: obj.label, isCircle: obj.type==='zone'
+                }, obj.x, obj.y);
+            });
+            
+            chatBox.removeChild(chatBox.lastChild); // Remove "Thinking..."
+            addMsg(`Successfully added ${objects.length} elements to the map!`, 'ai');
+            
+        } catch (e) {
+            chatBox.removeChild(chatBox.lastChild);
+            addMsg("Error: " + e.message, 'ai');
+            console.error('AI Error:', e);
+        }
+    });
+
+</script>
+</body>
+</html>

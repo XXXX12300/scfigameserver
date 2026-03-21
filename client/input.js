@@ -12,8 +12,10 @@ export class Input {
 
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
-            this.mouse.x = e.clientX - rect.left;
-            this.mouse.y = e.clientY - rect.top;
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+            this.mouse.x = (e.clientX - rect.left) * scaleX;
+            this.mouse.y = (e.clientY - rect.top) * scaleY;
         });
 
         canvas.addEventListener('mousedown', (e) => {
@@ -44,7 +46,11 @@ export class Input {
             interact: !!this.keys['KeyE'], // Enter/Exit Mech
             cheatXP: !!this.keys['KeyK'], // Developer XP
             tab: !!this.keys['Tab'], // Scoreboard
-            mouse: { 
+            menu: !!this.keys['KeyL'], // Weapon Menu (Loadout)
+            reload: !!this.keys['KeyR'], // Manual Reload
+            throwGrenade: !!this.keys['KeyG'], // Throw Grenade
+            sprint: !!this.keys['ShiftLeft'] || !!this.keys['ShiftRight'], // Sprinting
+            mouse: {
                 x: this.mouse.x,
                 y: this.mouse.y,
                 leftDown: this.mouse.buttons.left,

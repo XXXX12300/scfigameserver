@@ -1,11 +1,13 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mech Warfare TDS</title>
     <style>
-        body, html {
+        body,
+        html {
             margin: 0;
             padding: 0;
             overflow: hidden;
@@ -13,9 +15,11 @@
             color: #fff;
             font-family: 'Inter', sans-serif;
         }
+
         #gameCanvas {
             display: block;
         }
+
         #uiLayer {
             position: absolute;
             top: 0;
@@ -23,6 +27,7 @@
             width: 100%;
             height: 100%;
             pointer-events: none;
+            z-index: 200;
         }
 
         /* --- Cyberpunk Lobby UI --- */
@@ -32,7 +37,7 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background: linear-gradient(135deg, rgba(5,5,10,0.95) 0%, rgba(20,10,30,0.95) 100%);
+            background: linear-gradient(135deg, rgba(5, 5, 10, 0.95) 0%, rgba(20, 10, 30, 0.95) 100%);
             display: flex;
             flex-direction: column;
             justify-content: flex-start;
@@ -41,6 +46,7 @@
             pointer-events: auto;
             padding-top: 50px;
         }
+
         #mainMenu h1 {
             font-size: 3rem;
             color: #0ff;
@@ -49,12 +55,14 @@
             text-transform: uppercase;
             letter-spacing: 5px;
         }
+
         .lobby-container {
             display: flex;
             width: 80%;
             max-width: 1000px;
             gap: 20px;
         }
+
         .lobby-panel {
             background: rgba(0, 0, 0, 0.6);
             border: 1px solid #0ff;
@@ -64,16 +72,26 @@
             display: flex;
             flex-direction: column;
         }
+
         .lobby-panel h2 {
             border-bottom: 1px solid #0ff;
             padding-bottom: 10px;
             margin-top: 0;
             color: #fff;
         }
-        
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; color: #aaa; }
-        .form-group input[type="text"], .form-group select {
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            color: #aaa;
+        }
+
+        .form-group input[type="text"],
+        .form-group select {
             width: 100%;
             padding: 10px;
             background: #111;
@@ -82,11 +100,13 @@
             box-sizing: border-box;
             font-size: 16px;
         }
-        .form-group input[type="text"]:focus, .form-group select:focus {
+
+        .form-group input[type="text"]:focus,
+        .form-group select:focus {
             border-color: #0ff;
             outline: none;
         }
-        
+
         button.cyber-btn {
             padding: 12px 20px;
             font-size: 1.1rem;
@@ -100,44 +120,68 @@
             width: 100%;
             margin-top: 10px;
         }
+
         button.cyber-btn:hover {
             background: #0ff;
             color: #000;
             box-shadow: 0 0 15px #0ff;
         }
-        
+
         /* Room List */
         #roomList {
             flex-grow: 1;
             overflow-y: auto;
             border: 1px solid #333;
-            background: rgba(0,0,0,0.5);
+            background: rgba(0, 0, 0, 0.5);
             margin-bottom: 15px;
             padding: 10px;
         }
+
         .room-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 10px;
             border-bottom: 1px solid #333;
-            background: rgba(255,255,255,0.02);
+            background: rgba(255, 255, 255, 0.02);
             margin-bottom: 5px;
         }
-        .room-item:hover { background: rgba(0, 255, 255, 0.1); }
-        .room-info strong { color: #0ff; display: block; font-size: 18px; }
-        .room-info span { color: #888; font-size: 12px; }
-        .join-btn {
-            background: #4a90e2; border: none; padding: 8px 15px; color: white; cursor: pointer;
-            text-transform: uppercase; font-weight: bold;
+
+        .room-item:hover {
+            background: rgba(0, 255, 255, 0.1);
         }
-        .join-btn:hover { background: #357abd; }
+
+        .room-info strong {
+            color: #0ff;
+            display: block;
+            font-size: 18px;
+        }
+
+        .room-info span {
+            color: #888;
+            font-size: 12px;
+        }
+
+        .join-btn {
+            background: #4a90e2;
+            border: none;
+            padding: 8px 15px;
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+        }
+
+        .join-btn:hover {
+            background: #357abd;
+        }
 
         /* --- Killfeed UI --- */
         #killfeed {
             position: absolute;
             top: 20px;
-            right: 250px; /* offset from minimap */
+            right: 250px;
+            /* offset from minimap */
             width: 300px;
             display: flex;
             flex-direction: column;
@@ -145,6 +189,7 @@
             gap: 5px;
             pointer-events: none;
         }
+
         .feed-item {
             background: rgba(0, 0, 0, 0.6);
             border-left: 3px solid #fff;
@@ -154,14 +199,35 @@
             animation: fadeinout 4s forwards;
             white-space: nowrap;
         }
-        .feed-blue { color: #4a90e2; border-left-color: #4a90e2; }
-        .feed-red { color: #e24a4a; border-left-color: #e24a4a; }
-        
+
+        .feed-blue {
+            color: #4a90e2;
+            border-left-color: #4a90e2;
+        }
+
+        .feed-red {
+            color: #e24a4a;
+            border-left-color: #e24a4a;
+        }
+
         @keyframes fadeinout {
-            0% { opacity: 0; transform: translateX(20px); }
-            10% { opacity: 1; transform: translateX(0); }
-            80% { opacity: 1; }
-            100% { opacity: 0; }
+            0% {
+                opacity: 0;
+                transform: translateX(20px);
+            }
+
+            10% {
+                opacity: 1;
+                transform: translateX(0);
+            }
+
+            80% {
+                opacity: 1;
+            }
+
+            100% {
+                opacity: 0;
+            }
         }
 
         /* --- Scoreboard UI --- */
@@ -174,11 +240,13 @@
             background: rgba(10, 20, 40, 0.85);
             border: 2px solid #0ff;
             box-shadow: 0 0 20px rgba(0, 255, 255, 0.3);
-            display: none; /* hidden by default */
+            display: none;
+            /* hidden by default */
             flex-direction: column;
             padding: 20px;
             z-index: 50;
         }
+
         #scoreboard h2 {
             text-align: center;
             color: #0ff;
@@ -188,39 +256,157 @@
             border-bottom: 1px solid rgba(0, 255, 255, 0.3);
             padding-bottom: 10px;
         }
+
         .scoreboard-teams {
             display: flex;
             gap: 20px;
         }
+
         .team-col {
             flex: 1;
         }
-        .team-title-blue { color: #4a90e2; border-bottom: 2px solid #4a90e2; padding-bottom: 5px;}
-        .team-title-red { color: #e24a4a; border-bottom: 2px solid #e24a4a; padding-bottom: 5px;}
+
+        .team-title-blue {
+            color: #4a90e2;
+            border-bottom: 2px solid #4a90e2;
+            padding-bottom: 5px;
+        }
+
+        .team-title-red {
+            color: #e24a4a;
+            border-bottom: 2px solid #e24a4a;
+            padding-bottom: 5px;
+        }
+
         .player-row {
             display: flex;
             justify-content: space-between;
             padding: 8px 5px;
-            border-bottom: 1px solid rgba(255,255,255,0.1);
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             font-family: monospace;
             font-size: 16px;
         }
-        .player-row:nth-child(even) { background: rgba(255,255,255,0.02); }
+
+        .glowing-text {
+            color: #fff;
+            text-shadow: 0 0 10px #0ff;
+            font-weight: bold;
+        }
+
+        .death-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle, transparent 30%, rgba(200, 0, 0, 0.4) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 150;
+            pointer-events: none;
+            display: none;
+            /* Changed from flex to none */
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .death-text {
+            font-size: 48px;
+            color: #ff3333;
+            text-shadow: 0 0 20px #ff0000;
+            text-transform: uppercase;
+            letter-spacing: 5px;
+            margin-bottom: 10px;
+            font-family: monospace;
+        }
+
+        .respawn-timer {
+            font-size: 24px;
+            color: #fff;
+            text-transform: uppercase;
+            font-family: monospace;
+        }
+
+        .mode-label {
+            position: absolute;
+            top: 10px;
+            left: 20px;
+            color: #0ff;
+            font-weight: bold;
+            font-size: 18px;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+            text-shadow: 0 0 5px #0ff;
+            z-index: 100;
+        }
+        .map-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .map-option {
+            background: #111;
+            border: 2px solid #333;
+            cursor: pointer;
+            text-align: center;
+            border-radius: 4px;
+            overflow: hidden;
+            transition: all 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        .map-option:hover {
+            border-color: #0ff;
+            box-shadow: 0 0 10px #0ff;
+        }
+        .map-option.selected {
+            border-color: #f0f;
+            box-shadow: 0 0 15px #f0f;
+        }
+        .map-img-placeholder {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: rgba(255,255,255,0.3);
+            font-weight: bold;
+            background-size: cover;
+            background-position: center;
+        }
+        .map-name {
+            padding: 5px;
+            font-size: 11px;
+            background: rgba(0,0,0,0.8);
+            border-top: 1px solid #333;
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
+
 <body>
+
+    <!-- Cyberpunk Lobby UI -->
     <div id="mainMenu">
-        <h1>TITANFALL 2D</h1>
-        
+        <h1>Mech Warfare TDS</h1>
+
+
         <div class="lobby-container">
             <!-- Left Panel: Create Room & Settings -->
             <div class="lobby-panel" id="settingsPanel">
                 <h2>Pilot Settings</h2>
                 <div class="form-group">
                     <label>Pilot Name:</label>
-                    <input type="text" id="playerNameInput" placeholder="Enter your name..." value="Pilot" maxlength="15">
+                    <input type="text" id="playerNameInput" placeholder="Enter your name..." value="Pilot"
+                        maxlength="15">
                 </div>
-                
+
                 <h2 style="margin-top:20px;">Create Room</h2>
                 <div class="form-group">
                     <label>Room Name:</label>
@@ -228,34 +414,99 @@
                 </div>
                 <div class="form-group">
                     <label>Select Map:</label>
-                    <select id="mapSelect">
-                        <option value="neon_grid">Neon Grid</option>
-                        <option value="cyber_facility">Cyber Facility</option>
-                        <option value="wasteland">Wasteland</option>
+                    <button type="button" id="toggleMapDropdownBtn" class="cyber-btn" style="margin-top: 0; text-align: left;">
+                        <span id="mapSelectedText">Industrial Factory</span> <span style="float: right;">▼</span>
+                    </button>
+                    <input type="hidden" id="mapSelect" value="industrial_factory">
+                    
+                    <div id="mapDropdownContainer" style="display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center;">
+                        <div style="background: #0a0a0a; border: 2px solid #0ff; padding: 20px; box-shadow: 0 0 30px rgba(0,255,255,0.4); width: 80%; max-width: 900px; max-height: 80vh; overflow-y: auto; border-radius: 8px;">
+                            <h2 style="color: #0ff; margin-top: 0; border-bottom: 1px solid #0ff; padding-bottom: 10px; display: flex; justify-content: space-between;">
+                                Select Operation Map
+                                <button type="button" id="closeMapModalBtn" style="background: none; border: none; color: #0ff; font-size: 28px; cursor: pointer; line-height: 1;">&times;</button>
+                            </h2>
+                            <div class="map-grid" id="mapGrid" style="margin-top: 20px;">
+                                <div class="map-option selected" data-value="industrial_factory" data-name="Industrial Factory">
+                                    <div class="map-img-placeholder" style="background-color: #555; background-image: url('Sprites/MapTextures/Concrete_01_Grey_1.png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Industrial Factory</div>
+                                </div>
+                                <div class="map-option" data-value="medieval_castle" data-name="Medieval Castle">
+                                    <div class="map-img-placeholder" style="background-color: #447; background-image: url('Sprites/MapTextures/all textures/water_still (12).png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Medieval Castle</div>
+                                </div>
+                                <div class="map-option" data-value="small_town" data-name="Small Town">
+                                    <div class="map-img-placeholder" style="background-color: #363; background-image: url('Sprites/MapTextures/Grass_01_Green_1.png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Small Town</div>
+                                </div>
+                                <div class="map-option" data-value="forest_base" data-name="Forest Base">
+                                    <div class="map-img-placeholder" style="background-color: #252; background-image: url('Sprites/MapTextures/all textures/tree_spruce.png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Forest Base</div>
+                                </div>
+                                <div class="map-option" data-value="roadside_motel" data-name="Roadside Motel">
+                                    <div class="map-img-placeholder" style="background-color: #642; background-image: url('Sprites/MapTextures/Dirt_Cracked_01_Brown_1.png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Roadside Motel</div>
+                                </div>
+                                <div class="map-option" data-value="sinister_mansion" data-name="Mansion Encantada">
+                                    <div class="map-img-placeholder" style="background-color: #314; background-image: url('Sprites/MapTextures/all textures/web (3).png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Mansion Encantada</div>
+                                </div>
+                                <div class="map-option" data-value="pueblo_calle" data-name="Pueblo Calle">
+                                    <div class="map-img-placeholder" style="background-color: #543; background-image: url('Sprites/MapTextures/Vehicles/taxi.png'); height: 100px;"></div>
+                                    <div class="map-name" style="font-size: 14px; padding: 10px;">Pueblo Calle</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Select Game Mode:</label>
+                    <select id="gameModeSelect">
+                        <option value="tdm">Team Deathmatch (50 Kills) ⚔️</option>
+                        <option value="control_zone">Control Zone (1000 Pts) 🚩</option>
                     </select>
                 </div>
                 <div class="form-group" style="display:flex; align-items:center;">
-                    <input type="checkbox" id="addBotsInput" style="margin-right:10px;">
-                    <label for="addBotsInput" style="margin:0; cursor:pointer;">Populate with AI Bots</label>
+                    <input type="checkbox" id="addBotsInput" style="margin-right:10px;" checked>
+                    <label for="addBotsInput" style="margin:0; cursor:pointer;" class="glowing-text">Populate Server
+                        with AI Bots 🤖</label>
                 </div>
-                <button class="cyber-btn" id="createRoomBtn">Host Game</button>
+                <button class="cyber-btn" id="openLoadoutBtn" style="border-color: #f0f; color: #f0f;">Configure Professional Loadout</button>
+                <div style="display:flex; gap:10px;">
+                    <button class="cyber-btn" id="openEditorBtn" style="border-color: #ffa500; color: #ffa500;">Map Editor</button>
+                    <button class="cyber-btn" id="createRoomBtn">Launch Operation</button>
+                </div>
             </div>
-            
+
             <!-- Right Panel: Room List -->
             <div class="lobby-panel" id="browserPanel">
-                <h2>Server Browser <button id="refreshRoomsBtn" style="float:right; background:transparent; border:none; color:#0ff; cursor:pointer;">Refresh</button></h2>
+                <h2>Server Browser <button id="refreshRoomsBtn"
+                        style="float:right; background:transparent; border:none; color:#0ff; cursor:pointer;">Refresh</button>
+                </h2>
                 <div id="roomList">
                     <div style="text-align:center; color:#aaa; margin-top:50px;">Waiting for connection...</div>
                 </div>
-                <div id="statusText" style="text-align:center; color:#0ff; font-weight:bold; margin-top:10px;">Connecting...</div>
+                <div id="statusText" style="text-align:center; color:#0ff; font-weight:bold; margin-top:10px;">
+                    Connecting...</div>
             </div>
         </div>
-    </div>
+    </div> <!-- /mainMenu -->
 
     <canvas id="gameCanvas"></canvas>
+
     <div id="uiLayer">
+        <!-- New Game Mode HUD overlay -->
+        <div id="hud-game-mode" class="mode-label" style="display:none;">TDM - 50 Kills to Win</div>
+
+        <!-- Death Screen -->
+        <div id="deathOverlay" class="death-overlay" style="display: none;">
+            <div class="death-text">K.I.A.</div>
+            <div id="respawnTimer" class="respawn-timer">Respawning in 10s...</div>
+            <div style="margin-top:20px; color:#aaa; font-size:14px; font-family:monospace;">Press 'B' or 'L' to change
+                Loadout</div>
+        </div>
+
         <div id="killfeed"></div>
-        
+
         <div id="scoreboard">
             <h2>Combat Record</h2>
             <div class="scoreboard-teams">
@@ -271,6 +522,9 @@
         </div>
     </div>
 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="entities/TankEntity.js"></script>
     <script type="module" src="main.js"></script>
 </body>
+
 </html>
