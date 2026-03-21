@@ -113,7 +113,6 @@ class GameRoom {
                         // Reset ammo for the new weapon
                         const weaponData = this.weaponSystem.weapons[data.weaponId];
                         player.ammo = weaponData.magSize || 30;
-                        player.maxAmmo = weaponData.magSize || 30;
                         player.reloadTimer = 0;
                         player.isReloading = false;
                     }
@@ -125,6 +124,21 @@ class GameRoom {
                 const player = this.playerManager.players.get(playerId);
                 if (player) {
                     player.selectedKillstreak = data.streakId;
+                }
+            }
+        } else if (data.type === 'switch_team') {
+            const playerId = Array.from(this.playerManager.players.entries()).find(([id, p]) => p.ws === ws)?.[0];
+            if (playerId) {
+                const player = this.playerManager.players.get(playerId);
+                if (player) {
+                    this.teams[player.team]--;
+                    player.team = player.team === 'blue' ? 'red' : 'blue';
+                    this.teams[player.team]++;
+                    
+                    // Kill the player when they switch teams so they respawn
+                    player.hp = 0;
+                    player.isDead = true;
+                    player.deathTime = Date.now();
                 }
             }
         }

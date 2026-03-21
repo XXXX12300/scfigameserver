@@ -64,6 +64,15 @@ class GameClient {
         this.toggleMapDropdownBtn = document.getElementById('toggleMapDropdownBtn');
         this.mapSelectedText = document.getElementById('mapSelectedText');
         const closeMapModalBtn = document.getElementById('closeMapModalBtn');
+        this.switchTeamBtn = document.getElementById('switchTeamBtn');
+
+        if (this.switchTeamBtn) {
+            this.switchTeamBtn.addEventListener('click', () => {
+                if (this.network.isConnected && this.state === 'PLAYING') {
+                    this.network.ws.send(JSON.stringify({ type: 'switch_team' }));
+                }
+            });
+        }
 
         if (this.toggleMapDropdownBtn && this.mapDropdownContainer) {
             this.toggleMapDropdownBtn.addEventListener('click', () => {

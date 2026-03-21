@@ -245,6 +245,7 @@
             flex-direction: column;
             padding: 20px;
             z-index: 50;
+            pointer-events: auto;
         }
 
         #scoreboard h2 {
@@ -285,6 +286,31 @@
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             font-family: monospace;
             font-size: 16px;
+        }
+
+        .scoreboard-actions {
+            margin-top: 15px;
+            text-align: center;
+            border-top: 1px solid rgba(0, 255, 255, 0.3);
+            padding-top: 15px;
+        }
+
+        .scoreboard-btn {
+            background: #111;
+            border: 1px solid #0ff;
+            color: #0ff;
+            padding: 8px 15px;
+            font-size: 14px;
+            text-transform: uppercase;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-weight: bold;
+        }
+
+        .scoreboard-btn:hover {
+            background: #0ff;
+            color: #000;
+            box-shadow: 0 0 10px #0ff;
         }
 
         .glowing-text {
@@ -518,6 +544,9 @@
                     <h3 class="team-title-red">Red Team</h3>
                     <!-- players injected here -->
                 </div>
+            </div>
+            <div class="scoreboard-actions">
+                <button id="switchTeamBtn" class="scoreboard-btn">Switch Team 🔄</button>
             </div>
         </div>
     </div>

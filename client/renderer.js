@@ -443,17 +443,10 @@ export class Renderer {
                         // If it's a vehicle or a specific sprite-based obstacle, draw it direct. 
                         // Otherwise (like walls/buildings) we might still want patterns.
                         if (obs.texture && (obs.texture.startsWith('Vehicles/') || obs.type === 'building')) {
-                            // If it's a vehicle, it might need rotation to match bounding box flow.
-                            const isCar = obs.texture.startsWith('Vehicles/');
-                            const needsRotation = isCar && obs.w > obs.h;
-
                             this.ctx.translate(obs.x + obs.w / 2, obs.y + obs.h / 2);
-                            if (needsRotation) {
-                                this.ctx.rotate(Math.PI / 2);
-                                this.ctx.drawImage(obsSprite, -obs.h / 2, -obs.w / 2, obs.h, obs.w);
-                            } else {
-                                this.ctx.drawImage(obsSprite, -obs.w / 2, -obs.h / 2, obs.w, obs.h);
-                            }
+                            
+                            // 1:1 WYSIWYG rendering, no scaling hacks just like the Editor
+                            this.ctx.drawImage(obsSprite, -obs.w / 2, -obs.h / 2, obs.w, obs.h);
                         } else {
                             const pat = this.getMapPattern(obs.texture);
                             this.ctx.translate(obs.x, obs.y);
